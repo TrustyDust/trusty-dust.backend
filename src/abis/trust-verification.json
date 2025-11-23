@@ -1,0 +1,13 @@
+[
+  {
+    "name": "verify",
+    "type": "function",
+    "stateMutability": "view",
+    "inputs": [
+      { "name": "minScore", "type": "uint256" },
+      { "name": "proof", "type": "bytes" },
+      { "name": "publicInputs", "type": "uint256[]" }
+    ],
+    "outputs": [{ "name": "valid", "type": "bool" }]
+  }
+]

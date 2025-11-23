@@ -1,0 +1,178 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { AbiLoaderService } from './abi-loader.service';
+import { Address, PublicClient, WalletClient, Chain, createPublicClient, createWalletClient, http, type Account } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+
+@Injectable()
+export class BlockchainService {
+  private readonly logger = new Logger(BlockchainService.name);
+  private publicClient?: PublicClient;
+  private walletClient?: WalletClient;
+  private walletAccount?: Account;
+  private readonly chain: Chain | undefined;
+  private readonly rpcUrl: string | undefined;
+
+  constructor(private readonly configService: ConfigService, private readonly abiLoader: AbiLoaderService) {
+    this.rpcUrl = this.configService.get<string>('RPC_URL');
+    this.chain = undefined;
+    if (this.rpcUrl) {
+      this.publicClient = createPublicClient({ transport: http(this.rpcUrl) });
+    }
+  }
+
+  private normalizeAddress(address: string): Address {
+    return (address.startsWith('0x') ? address : `0x${address}`) as Address;
+  }
+
+  private getPublicClient() {
+    if (!this.publicClient) {
+      if (!this.rpcUrl) {
+        throw new Error('RPC_URL missing for viem client');
+      }
+      this.publicClient = createPublicClient({ transport: http(this.rpcUrl) });
+    }
+    return this.publicClient;
+  }
+
+  private getWalletClient() {
+    if (this.walletClient) {
+      return this.walletClient;
+    }
+    const rpcUrl = this.rpcUrl;
+    const privateKey = this.configService.get<string>('ESCROW_SIGNER_KEY');
+    if (!rpcUrl || !privateKey) {
+      this.logger.warn('Wallet client not fully configured, returning undefined - calls will be simulated');
+      return undefined;
+    }
+    const account = privateKeyToAccount(privateKey as `0x${string}`);
+    this.walletClient = createWalletClient({
+      account,
+      transport: http(rpcUrl),
+    });
+    this.walletAccount = account;
+    return this.walletClient;
+  }
+
+  async verifyTrustProof(minScore: number, proof: string, publicInputs: string[]) {
+    const contractAddress = this.configService.get<string>('TRUST_VERIFICATION_ADDRESS');
+    if (!contractAddress) {
+      this.logger.warn('TRUST_VERIFICATION_ADDRESS missing, skipping on-chain verification');
+      return true;
+    }
+    const abi = this.abiLoader.loadAbi('trust-verification.json');
+    const formattedProof = proof.startsWith('0x') ? (proof as `0x${string}`) : (`0x${proof}` as `0x${string}`);
+    const client = this.getPublicClient();
+    const publicInputBigInts = publicInputs.map((value) => BigInt(value));
+    return client.readContract({
+      address: contractAddress as Address,
+      abi,
+      functionName: 'verify',
+      args: [BigInt(minScore), formattedProof, publicInputBigInts],
+    }) as Promise<boolean>;
+  }
+
+  async lockEscrow(jobId: number, poster: string, worker: string, amount: bigint) {
+    const contractAddress = this.configService.get<string>('ESCROW_FACTORY_ADDRESS');
+    if (!contractAddress) {
+      return `offchain-lock-${jobId}-${Date.now()}`;
+    }
+    const wallet = this.getWalletClient();
+    if (!wallet) {
+      return `simulated-lock-${jobId}-${Date.now()}`;
+    }
+    const abi = this.abiLoader.loadAbi('escrow-factory.json');
+    return wallet.writeContract({
+      address: contractAddress as Address,
+      abi,
+      functionName: 'lock',
+      args: [BigInt(jobId), this.normalizeAddress(poster), this.normalizeAddress(worker), amount],
+      chain: this.chain,
+      account: this.walletAccount ?? null,
+    });
+  }
+
+  async releaseEscrow(jobId: number) {
+    const contractAddress = this.configService.get<string>('ESCROW_FACTORY_ADDRESS');
+    if (!contractAddress) {
+      return `offchain-release-${jobId}-${Date.now()}`;
+    }
+    const wallet = this.getWalletClient();
+    if (!wallet) {
+      return `simulated-release-${jobId}-${Date.now()}`;
+    }
+    const abi = this.abiLoader.loadAbi('escrow-factory.json');
+    return wallet.writeContract({
+      address: contractAddress as Address,
+      abi,
+      functionName: 'release',
+      args: [BigInt(jobId)],
+      chain: this.chain,
+      account: this.walletAccount ?? null,
+    });
+  }
+
+  async refundEscrow(jobId: number) {
+    const contractAddress = this.configService.get<string>('ESCROW_FACTORY_ADDRESS');
+    if (!contractAddress) {
+      return `offchain-refund-${jobId}-${Date.now()}`;
+    }
+    const wallet = this.getWalletClient();
+    if (!wallet) {
+      return `simulated-refund-${jobId}-${Date.now()}`;
+    }
+    const abi = this.abiLoader.loadAbi('escrow-factory.json');
+    return wallet.writeContract({
+      address: contractAddress as Address,
+      abi,
+      functionName: 'refund',
+      args: [BigInt(jobId)],
+      chain: this.chain,
+      account: this.walletAccount ?? null,
+    });
+  }
+
+  async updateSbtMetadata(tokenId: number, tier: string, action: 'mint' | 'update', owner?: string) {
+    const contractAddress = this.configService.get<string>('SBT_CONTRACT_ADDRESS');
+    if (!contractAddress) {
+      return `offchain-sbt-${action}-${tokenId}`;
+    }
+    const wallet = this.getWalletClient();
+    if (!wallet) {
+      return `simulated-sbt-${action}-${tokenId}`;
+    }
+    const abi = this.abiLoader.loadAbi('sbt.json');
+    const functionName = action === 'mint' ? 'mint' : 'updateMetadata';
+    const args = action === 'mint'
+      ? [this.normalizeAddress(owner as string), BigInt(tokenId), tier]
+      : [BigInt(tokenId), tier];
+    return wallet.writeContract({
+      address: contractAddress as Address,
+      abi,
+      functionName,
+      args,
+      chain: this.chain,
+      account: this.walletAccount ?? null,
+    });
+  }
+
+  async burnDustBoost(user: string, amount: bigint, postId: number) {
+    const contractAddress = this.configService.get<string>('DUST_TOKEN_ADDRESS');
+    if (!contractAddress) {
+      return `offchain-burn-${postId}-${Date.now()}`;
+    }
+    const wallet = this.getWalletClient();
+    if (!wallet) {
+      return `simulated-burn-${postId}-${Date.now()}`;
+    }
+    const abi = this.abiLoader.loadAbi('dust-token.json');
+    return wallet.writeContract({
+      address: contractAddress as Address,
+      abi,
+      functionName: 'burnBoost',
+      args: [this.normalizeAddress(user), amount, BigInt(postId)],
+      chain: this.chain,
+      account: this.walletAccount ?? null,
+    });
+  }
+}

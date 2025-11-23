@@ -1,0 +1,207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ReactionType {
+  LIKE
+  COMMENT
+  REPOST
+}
+
+enum JobStatus {
+  OPEN
+  COMPLETED
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SUBMITTED
+  CONFIRMED
+}
+
+model User {
+  id             String             @id @default(cuid())
+  walletAddress  String             @unique
+  username       String?
+  avatar         String?
+  tier           String             @default("Dust")
+  trustScore     Int                @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  posts          Post[]
+  postReactions  PostReaction[]
+  postBoosts     PostBoost[]
+  trustEvents    TrustEvent[]
+  trustSnapshots TrustSnapshot[]
+  tierHistory    TierHistory[]
+  sbtToken       SbtToken?
+  createdJobs    Job[]              @relation("JobCreator")
+  applications   JobApplication[]   @relation("JobWorker")
+  notifications  Notification[]
+  balances       UserTokenBalance[]
+  zkProofs       ZkProof[]
+}
+
+model Post {
+  id        String       @id @default(cuid())
+  authorId  String
+  author    User         @relation(fields: [authorId], references: [id])
+  text      String
+  ipfsCid   String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  media     PostMedia[]
+  reactions PostReaction[]
+  boosts    PostBoost[]
+}
+
+model PostMedia {
+  id      String @id @default(cuid())
+  postId  String
+  post    Post   @relation(fields: [postId], references: [id])
+  url     String
+}
+
+model PostReaction {
+  id          String        @id @default(cuid())
+  postId      String
+  post        Post          @relation(fields: [postId], references: [id])
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  type        ReactionType
+  commentText String?
+  createdAt   DateTime      @default(now())
+}
+
+model PostBoost {
+  id        String  @id @default(cuid())
+  sequence  Int     @unique @default(autoincrement())
+  postId    String
+  post      Post    @relation(fields: [postId], references: [id])
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  dustSpent Int
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model TrustEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  source    String
+  delta     Int
+  createdAt DateTime @default(now())
+}
+
+model TrustSnapshot {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  score     Int
+  metadata  String?
+  createdAt DateTime @default(now())
+}
+
+model ZkProof {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  minScore     Int
+  proof        String
+  publicInputs String[]
+  txHash       String?
+  createdAt    DateTime @default(now())
+}
+
+model TierHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  tier      String
+  score     Int
+  createdAt DateTime @default(now())
+}
+
+model SbtToken {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id])
+  tokenId    Int
+  tier       String
+  lastTxHash String?
+  mintedAt   DateTime @default(now())
+}
+
+model Job {
+  id            String           @id @default(cuid())
+  chainRef      Int              @unique @default(autoincrement())
+  creatorId     String
+  creator       User             @relation("JobCreator", fields: [creatorId], references: [id])
+  title         String
+  description   String
+  minTrustScore Int
+  reward        Int
+  status        JobStatus        @default(OPEN)
+  applications  JobApplication[]
+  escrow        JobEscrow?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model JobApplication {
+  id                 String             @id @default(cuid())
+  jobId              String
+  job                Job                @relation(fields: [jobId], references: [id])
+  workerId           String
+  worker             User               @relation("JobWorker", fields: [workerId], references: [id])
+  status             ApplicationStatus  @default(APPLIED)
+  workSubmissionText String?
+  confirmationTxHash String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+model JobEscrow {
+  id            String   @id @default(cuid())
+  jobId         String   @unique
+  job           Job      @relation(fields: [jobId], references: [id])
+  amount        Int
+  lockTxHash    String
+  releaseTxHash String?
+  refundTxHash  String?
+  createdAt     DateTime @default(now())
+}
+
+model Token {
+  id          String             @id @default(cuid())
+  symbol      String             @unique
+  description String?
+  balances    UserTokenBalance[]
+}
+
+model UserTokenBalance {
+  id                    String   @id @default(cuid())
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id])
+  tokenId               String
+  token                 Token    @relation(fields: [tokenId], references: [id])
+  balance               Float    @default(0)
+  dailyEarned           Float    @default(0)
+  dailyEarnedCheckpoint DateTime?
+  lastReason            String?
+  @@unique([userId, tokenId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  message   String
+  createdAt DateTime @default(now())
+}
