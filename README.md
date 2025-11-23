@@ -7,7 +7,7 @@ Backend MVP untuk ekosistem TrustyDust yang menggabungkan reputasi sosial, job e
 - **User Module**: CRUD profil dasar (`walletAddress`, `username`, `avatar`, `tier`, `trustScore`).
 - **Social Module**: Posting, like/comment/repost, dan boost dengan perhitungan reward DUST serta pencatatan `TrustEvent`.
 - **Trust Module**: Mesin skor (`baseScore`, `dustMultiplier`, `totalScore`) + trigger otomatis ke Tier Module.
-- **ZK Module**: Endpoint `/zk/verify` untuk memverifikasi Noir proof melalui kontrak `TrustVerification.sol` dan menyimpan `ZkProof` ke DB.
+- **ZK Module**: Endpoint `/zk/prove` untuk backend Noir proving & `/zk/verify` untuk cek kontrak `TrustVerification.sol`, semuanya tersinkron dengan Prisma `ZkProof`.
 - **DUST Module**: Akuntansi off-chain (reward, burn untuk boost, multiplier hook).
 - **Tier & SBT Module**: Otomatis upgrade tier, update metadata SBT, dan notifikasi user.
 - **Jobs + Escrow Module**: Flow full (create/apply/submit/confirm), mengunci USDC on-chain lewat viem escrow client.
@@ -78,6 +78,33 @@ Semua endpoint (kecuali `/auth/login` & `/health`) memakai `JwtAuthGuard`.
 2. **Apply**: Worker kirim proof, burn 20 DUST, membuat `JobApplication` status APPLIED.
 3. **Submit**: Worker mengirim `workSubmissionText`, status menjadi SUBMITTED.
 4. **Confirm**: Poster konfirmasi → Escrow release (atau refund jika perlu), `TrustEvent(job_completed, +100)` dijalankan dan tier dicek ulang.
+
+## Noir + ZK Backend
+Best practice singkat saat memakai Noir + Barretenberg:
+- **Pisahkan circuit & backend** – simpan circuit di `circuits/trust_score`, dan cache ACIR/proving key agar tidak compile di runtime request.
+- **Validasi boolean output** – contoh circuit memaksa `is_valid` hanya 0/1 sehingga verifier bisa percaya output publiknya.
+- **Gunakan string untuk Field** – saat membangun witness di backend, kirim `userScore` dan `minScore` sebagai string agar Noir WASM tidak kehilangan presisi.
+- **Kompilasi deterministic** – jalankan `nargo check` sebelum `nargo compile` untuk memastikan constraint konsisten.
+- **Pisahkan proving & verification key** – `ZkCompiler` hanya load sekali saat bootstrap lalu direuse di `ZkProver`.
+
+### Struktur Circuit & Cara Compile
+```bash
+cd circuits/trust_score
+nargo check
+nargo compile
+```
+Hasil kompilasi (`build/trust_score.acir.gz`, proving/verification key) akan otomatis di-load oleh `ZkCompiler` ketika aplikasi start.
+
+### ZK Workflow Backend
+1. **Proving** – `POST /zk/prove` body `{ "userId": "...", "minScore": 300 }`. Service mengambil `trustScore` user dari DB, menjalankan Noir WASM + Barretenberg untuk membuat proof + `publicInputs`, lalu menyimpannya ke tabel `ZkProof`.
+2. **Verifikasi on-chain** – `POST /zk/verify` body `{ proof, publicInputs }`. Backend memanggil kontrak `TrustVerification.sol` via viem. ABI ada di `src/abis/trust-verification.json` dan contoh kontrak berada di `contracts/TrustVerification.sol` (siap dikompilasi dengan Foundry `forge build`).
+3. **Testing script** – `npm run test:zk` menjalankan `scripts/test-zk.ts` yang:
+   - mengecek hasil kompilasi circuit,
+   - menjalankan prover backend untuk nilai dummy,
+   - memanggil verifier on-chain bila alamat tersedia,
+   - menyimpan proof contoh ke Prisma `ZkProof`.
+
+> Catatan Foundry: deploy contoh kontrak dengan `forge create` lalu isi env `TRUST_VERIFICATION_ADDRESS`. Kontrak `TrustVerification.sol` hanya meneruskan pemanggilan ke verifier Noir yang dihasilkan Nargo.
 
 ## Contoh API Call
 ```bash

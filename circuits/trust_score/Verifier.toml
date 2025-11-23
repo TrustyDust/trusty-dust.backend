@@ -1,0 +1,2 @@
+[verifier]
+# Public inputs are emitted in the same order as they appear in the circuit output

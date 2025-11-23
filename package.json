@@ -20,7 +20,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:zk": "ts-node scripts/test-zk.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -32,6 +33,8 @@
     "@nestjs/platform-socket.io": "^11.1.9",
     "@nestjs/swagger": "^11.2.3",
     "@nestjs/websockets": "^11.1.9",
+    "@noir-lang/barretenberg": "^2.22.0",
+    "@noir-lang/noir_wasm": "^0.30.0",
     "@prisma/client": "^5.18.0",
     "axios": "^1.13.2",
     "class-transformer": "^0.5.1",
@@ -84,6 +87,7 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "setupFilesAfterEnv": ["<rootDir>/../jest.setup.ts"]
   }
 }

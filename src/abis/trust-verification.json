@@ -1,12 +1,11 @@
 [
   {
-    "name": "verify",
+    "name": "verifyProof",
     "type": "function",
     "stateMutability": "view",
     "inputs": [
-      { "name": "minScore", "type": "uint256" },
       { "name": "proof", "type": "bytes" },
-      { "name": "publicInputs", "type": "uint256[]" }
+      { "name": "publicInputs", "type": "bytes32[]" }
     ],
     "outputs": [{ "name": "valid", "type": "bool" }]
   }

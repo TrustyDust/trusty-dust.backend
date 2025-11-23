@@ -54,7 +54,8 @@ export class BlockchainService {
     return this.walletClient;
   }
 
-  async verifyTrustProof(minScore: number, proof: string, publicInputs: string[]) {
+  async verifyTrustProof(params: { proof: string; publicInputs: string[]; minScore?: number }) {
+    const { proof, publicInputs, minScore } = params;
     const contractAddress = this.configService.get<string>('TRUST_VERIFICATION_ADDRESS');
     if (!contractAddress) {
       this.logger.warn('TRUST_VERIFICATION_ADDRESS missing, skipping on-chain verification');
@@ -63,12 +64,16 @@ export class BlockchainService {
     const abi = this.abiLoader.loadAbi('trust-verification.json');
     const formattedProof = proof.startsWith('0x') ? (proof as `0x${string}`) : (`0x${proof}` as `0x${string}`);
     const client = this.getPublicClient();
-    const publicInputBigInts = publicInputs.map((value) => BigInt(value));
+    const toBytes32 = (value: string) => {
+      const normalized = value.startsWith('0x') ? value.slice(2) : BigInt(value).toString(16);
+      return (`0x${normalized.padStart(64, '0')}`) as `0x${string}`;
+    };
+    const publicInputBytes = publicInputs.map((value) => toBytes32(value));
     return client.readContract({
       address: contractAddress as Address,
       abi,
-      functionName: 'verify',
-      args: [BigInt(minScore), formattedProof, publicInputBigInts],
+      functionName: 'verifyProof',
+      args: [formattedProof, publicInputBytes],
     }) as Promise<boolean>;
   }
 

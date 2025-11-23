@@ -1,26 +1,48 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
-import { VerifyProofDto } from './dto/verify-proof.dto';
+import { ZkProver } from './zk.prover';
+import { ZkProofResult } from './zk.types';
 
 @Injectable()
 export class ZkService {
-  constructor(private readonly prisma: PrismaService, private readonly blockchain: BlockchainService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly blockchain: BlockchainService,
+    private readonly zkProver: ZkProver,
+  ) {}
 
-  async verifyProof(userId: string, dto: VerifyProofDto) {
-    const isValid = await this.blockchain.verifyTrustProof(dto.minScore, dto.proof, dto.publicInputs);
-    if (!isValid) {
-      throw new BadRequestException('Invalid ZK proof');
+  async generateProof(userId: string, minScore: number): Promise<ZkProofResult> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
-    return this.prisma.zkProof.create({
+
+    const witnessInput = {
+      userScore: user.trustScore.toString(),
+      minScore: minScore.toString(),
+    };
+
+    const proofResult = await this.zkProver.generateProof(witnessInput);
+
+    await this.prisma.zkProof.create({
       data: {
         userId,
-        minScore: dto.minScore,
-        proof: dto.proof,
-        publicInputs: dto.publicInputs,
-        txHash: dto.txHash,
+        minScore,
+        proof: proofResult.proof,
+        publicInputs: proofResult.publicInputs,
       },
     });
+
+    return proofResult;
+  }
+
+  async verifyProof(proof: string, publicInputs: string[]) {
+    const valid = await this.blockchain.verifyTrustProof({ proof, publicInputs });
+    if (!valid) {
+      throw new BadRequestException('Invalid ZK proof');
+    }
+    return { valid };
   }
 
   async assertProof(userId: string, minScore: number, proofId?: string) {
