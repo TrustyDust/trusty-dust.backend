@@ -1,0 +1,44 @@
+# TrustyDust Backend Progress Log
+
+## 1. Initial NestJS Scaffold & Core Modules
+- Menyiapkan proyek NestJS dasar + global validation pipe & health check endpoint.
+- Membuat Prisma service/module, Users/Auth/Dust/Trust/Tier/Social/Jobs/Zk awal dengan controller + service sesuai flow reputasi, posting, dan kerjaan.
+- Menambahkan sistem guard (Privy + JWT), decorator `@CurrentUser`, serta ABIs + layanan blockchain viem.
+
+## 2. Domain Features & Persistence
+- Melengkapi Prisma schema (`User`, sosial, trust, token balance, jobs, escrow, notification, ZkProof, dsb.) dan membuat seed script contoh posting + job.
+- Implementasi modul Dust (reward + spend), Social (post/react/boost), Jobs (create/apply/submit/confirm), Escrow (lock/release/refund), Tier/SBT/Notification.
+- Menyiapkan `.env.example`, README detail, dan script Prisma (generate, migrate, seed).
+
+## 3. Testing Coverage
+- Menulis unit test untuk semua service utama: Auth, Users, Dust, Social, Trust, Tier, Jobs, Zk, Escrow, Blockchain, Notification (service & gateway), SBT, AppService.
+- Menambah Jest setup & mocks sehingga seluruh suite (`npm run test -- --runInBand`) lulus.
+
+## 4. Swagger & Developer DX
+- Menambahkan dokumentasi Swagger (`/docs`) lengkap dengan decorator DTO & controller guards.
+- Mengupdate README dengan daftar endpoint, flow DUST/Trust, serta instruksi migrasi/usage.
+
+## 5. ZK Proof Backend Generator
+- Membuat struktur `circuits/trust_score` dengan `main.nr`, `Nargo.toml`, `Prover/Verifier.toml`, serta panduan compile.
+- Implementasi `ZkCompiler`, `ZkProver`, utilitas ACIR, tipe witness/proof, dan update `ZkService` & controller (`/zk/prove`, `/zk/verify`).
+- Integrasi Noir WASM + Barretenberg dengan type safety (type roots tambahan) serta contoh script `npm run test:zk`.
+- Menyediakan contoh kontrak `contracts/TrustVerification.sol` (kompatibel Foundry) & menyesuaikan ABI + layanan blockchain untuk `verifyProof(bytes,bytes32[])`.
+- Dokumentasi Noir best practices + workflow di README.
+
+## 6. CI Readiness
+- Menambahkan Jest setup global untuk mock Noir/Barretenberg agar unit test tetap ringan.
+- Menjamin seluruh test suite tetap hijau setelah penambahan ZK stack.
+
+## 7. Integration Tests
+- Menambahkan e2e test `test/auth.e2e-spec.ts` untuk memverifikasi flow `/auth/login` lengkap dengan mock Privy guard.
+- Menambahkan e2e `test/users.e2e-spec.ts` untuk `/users/me` (GET/PATCH) dengan JWT dan Prisma cleanup otomatis.
+- Menyusul `test/social.e2e-spec.ts` yang memverifikasi `/social/posts` dengan mock Dust/Trust/Notification/Blockchain agar reward & notifikasi tetap terpantau tanpa akses eksternal.
+- Memperluas `test/social.e2e-spec.ts` agar mencakup `/social/posts/:id/react` dan `/social/posts/:id/boost` dengan assert ke mock reward/burn.
+- Menambahkan `test/trust.e2e-spec.ts` untuk endpoint `/trust/score` sehingga pengambilan skor reputasi teruji ujung ke ujung.
+- Menambahkan `test/jobs.e2e-spec.ts` untuk flow `/jobs/create` dengan mock ZK/DUST/Escrow/Notification sehingga pembuatan job + locking escrow ikut tervalidasi.
+- Memperluas `test/jobs.e2e-spec.ts` untuk mencakup `/jobs/:id/apply` (worker application) dengan seeding poster/worker + JWT.
+- Menambahkan `test/tier.e2e-spec.ts` demi memastikan `/tier/me` menampilkan tier + history dari Prisma.
+- Menambahkan `test/zk.e2e-spec.ts` untuk memeriksa `/zk/prove` dan `/zk/verify` dengan mock prover & blockchain.
+- Menambahkan `test/notifications.e2e-spec.ts` untuk menguji `GET /notifications` dengan seeding notifikasi dan JWT.
+- Memperluas `test/jobs.e2e-spec.ts` agar mencakup `/jobs/:id/apply`, `/jobs/application/:id/submit`, dan `/jobs/application/:id/confirm` (termasuk assert escrow release mock).
+- Siap melanjutkan modul-modul lain menggunakan pola testing serupa.
