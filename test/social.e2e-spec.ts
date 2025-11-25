@@ -135,4 +135,59 @@ describe('SocialModule (e2e)', () => {
     expect(blockchainMock.burnDustBoost).toHaveBeenCalled();
     expect(notificationMock.notify).toHaveBeenCalledWith(user.id, 'Your post received a boost');
   });
+
+  it('GET /social/posts returns feed with counts and previews', async () => {
+    const { token, user } = await createUserAndToken();
+    const other = await prisma.user.create({
+      data: {
+        walletAddress: '0xfeedposter',
+        username: 'alex',
+        tier: 'Spark',
+        trustScore: 500,
+      },
+    });
+    const post = await prisma.post.create({
+      data: {
+        authorId: other.id,
+        text: 'Feed me',
+      },
+    });
+    await prisma.postReaction.create({
+      data: { postId: post.id, userId: user.id, type: 'LIKE' },
+    });
+    await prisma.postReaction.create({
+      data: { postId: post.id, userId: other.id, type: 'COMMENT', commentText: 'Thanks!' },
+    });
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/social/posts?limit=1')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].reactionCounts.like).toBe(1);
+    expect(response.body.data[0].commentPreview[0].text).toBe('Thanks!');
+  });
+
+  it('GET /social/posts/:id returns detail with comments', async () => {
+    const { token, user } = await createUserAndToken();
+    const post = await prisma.post.create({
+      data: {
+        authorId: user.id,
+        text: 'Detail me',
+      },
+    });
+    await prisma.postReaction.create({
+      data: { postId: post.id, userId: user.id, type: 'COMMENT', commentText: 'First!' },
+    });
+
+    const response = await request(app.getHttpServer())
+      .get(`/api/v1/social/posts/${post.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body.id).toBe(post.id);
+    expect(response.body.comments).toHaveLength(1);
+    expect(response.body.reactionCounts.comment).toBe(1);
+  });
 });

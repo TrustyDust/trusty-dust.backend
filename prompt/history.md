@@ -119,3 +119,9 @@
 - Menambahkan DTO `MyApplicationsQueryDto`, endpoint `GET /jobs/applications/me` (+ throttle 60 req/menit) untuk mengambil aplikasi milik worker saat ini, lengkap dengan meta job (title, company, reward, status).
 - `JobsService.listMyApplications` baru yang membatasi hasil (default 5, max 20) dan menyertakan informasi job terkait; unit test diperluas untuk memverifikasi behavior limit.
 - E2E test `test/jobs.e2e-spec.ts` sekarang mencakup skenario pemanggilan endpoint baru guna memastikan respons sudah menampilkan aplikasi worker.
+
+## 23. Social Feed & Detail API
+- Endpoint baru `GET /social/posts` (limit/cursor + preview komentar) serta `GET /social/posts/:id` (detail + komentar) disertai throttling 120 req/menit.
+- `SocialService` kini menggabungkan data Post + media + reaction counts per tipe + status follow viewer + komentar terbaru; detail endpoint juga menampilkan seluruh komentar (limit default 20).
+- DTO tambahan (`ListPostsQueryDto`, `PostDetailQueryDto`) dengan validasi limit, plus unit test baru yang memastikan aggregate data terbentuk benar.
+- E2E test sosial diperluas untuk memverifikasi feed & detail; README/table endpoint diperbarui menjelaskan API baru (tes e2e masih terganjal koneksi DB Neon).

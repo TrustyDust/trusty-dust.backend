@@ -12,12 +12,20 @@ describe('SocialService', () => {
     post: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
     },
     postReaction: {
       create: jest.fn(),
+      groupBy: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
     },
     postBoost: {
       create: jest.fn(),
+    },
+    follow: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
     },
     user: {
       findUnique: jest.fn(),
@@ -36,6 +44,86 @@ describe('SocialService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new SocialService(prisma, dust, trust, notifications, blockchain);
+  });
+
+  describe('listPosts', () => {
+    it('returns posts with counts, viewer reaction, and follow state', async () => {
+      const createdAt = new Date();
+      (prisma.post.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: 'post-1',
+          authorId: 'author',
+          text: 'gm',
+          ipfsCid: null,
+          createdAt,
+          media: [],
+          author: { id: 'author', username: 'alex', avatar: null, tier: 'Dust', jobTitle: 'UI' },
+        },
+      ]);
+      (prisma.postReaction.groupBy as jest.Mock).mockResolvedValue([
+        { postId: 'post-1', type: 'LIKE', _count: { _all: 3 } },
+        { postId: 'post-1', type: 'COMMENT', _count: { _all: 2 } },
+      ]);
+      (prisma.postReaction.findMany as jest.Mock).mockResolvedValueOnce([
+        { postId: 'post-1', type: 'LIKE' },
+      ]);
+      (prisma.postReaction.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: 'c-1',
+          commentText: 'nice',
+          createdAt,
+          user: { id: 'commenter', username: 'bob', avatar: null, tier: 'Spark' },
+        },
+      ]);
+      (prisma.follow.findMany as jest.Mock).mockResolvedValue([{ followingId: 'author' }]);
+
+      const result = await service.listPosts('viewer', { limit: 1 } as any);
+
+      expect(prisma.post.findMany).toHaveBeenCalled();
+      expect(result.data[0].reactionCounts).toEqual({ like: 3, comment: 2, repost: 0 });
+      expect(result.data[0].viewerReaction).toBe('LIKE');
+      expect(result.data[0].author.isFollowedByViewer).toBe(true);
+      expect(result.data[0].commentPreview).toHaveLength(1);
+    });
+  });
+
+  describe('getPostDetail', () => {
+    it('returns single post with comments and counts', async () => {
+      const createdAt = new Date();
+      (prisma.post.findUnique as jest.Mock).mockResolvedValue({
+        id: 'post-1',
+        authorId: 'author',
+        text: 'hello',
+        ipfsCid: null,
+        createdAt,
+        media: [],
+        author: { id: 'author', username: 'alex', avatar: null, tier: 'Dust', jobTitle: 'UX' },
+      });
+      (prisma.postReaction.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: 'comment-1',
+          commentText: 'nice',
+          createdAt,
+          user: { id: 'commenter', username: 'bob', avatar: null, tier: 'Spark' },
+        },
+      ]);
+      (prisma.postReaction.groupBy as jest.Mock).mockResolvedValue([
+        { postId: 'post-1', type: 'LIKE', _count: { _all: 1 } },
+        { postId: 'post-1', type: 'COMMENT', _count: { _all: 1 } },
+      ]);
+      (prisma.postReaction.findFirst as jest.Mock).mockResolvedValue({ type: 'LIKE' });
+      (prisma.follow.findFirst as jest.Mock).mockResolvedValue({ id: 'follow' });
+
+      const detail = await service.getPostDetail('viewer', 'post-1', { commentsLimit: 5 } as any);
+
+      expect(prisma.post.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'post-1' } }),
+      );
+      expect(detail.reactionCounts).toEqual({ like: 1, comment: 1, repost: 0 });
+      expect(detail.viewerReaction).toBe('LIKE');
+      expect(detail.comments).toHaveLength(1);
+      expect(detail.author.isFollowedByViewer).toBe(true);
+    });
   });
 
   describe('createPost', () => {

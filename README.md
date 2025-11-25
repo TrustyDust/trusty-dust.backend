@@ -61,6 +61,8 @@ Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`,
 | `/api/v1/users/suggested` | GET | Ambil 3 saran user dengan tier/job type serupa (30 req/menit).
 | `/api/v1/users/:id/follow` | POST/DELETE | Follow/unfollow user lain (120 req/menit).
 | `/api/v1/social/posts` | POST | Buat post, otomatis +3 DUST (rate limit 20/min/IP).
+| `/api/v1/social/posts` | GET | Ambil feed terbaru (media, counts, preview komentar, penanda viewer follow/reaction).
+| `/api/v1/social/posts/:id` | GET | Ambil detail post + daftar komentar (limit default 20).
 | `/api/v1/social/posts/:id/react` | POST | Like/Comment/Repost (+1/+3/+1 DUST, daily cap 50 DUST) — rate limit 60/min/IP.
 | `/api/v1/social/posts/:id/boost` | POST | Burn DUST untuk promote post (rate limit 10/min/IP).
 | `/api/v1/trust/score` | GET | Ambil skor terkini (limit 120 req/menit).

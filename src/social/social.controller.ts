@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { SocialService } from './social.service';
@@ -8,6 +8,8 @@ import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { CreatePostDto } from './dto/create-post.dto';
 import { ReactPostDto } from './dto/react-post.dto';
 import { BoostPostDto } from './dto/boost-post.dto';
+import { ListPostsQueryDto } from './dto/list-posts-query.dto';
+import { PostDetailQueryDto } from './dto/post-detail-query.dto';
 
 @ApiTags('Social')
 @ApiBearerAuth('backend-jwt')
@@ -15,6 +17,26 @@ import { BoostPostDto } from './dto/boost-post.dto';
 @UseGuards(ThrottlerGuard, JwtAuthGuard)
 export class SocialController {
   constructor(private readonly socialService: SocialService) {}
+
+  @Get('posts')
+  @Throttle({ socialFeed: { limit: 120, ttl: 60 } })
+  @ApiOperation({ summary: 'Retrieve paginated social feed' })
+  @ApiOkResponse({ description: 'List of posts with reaction counts and previews' })
+  listPosts(@CurrentUser() user: RequestUser, @Query() query: ListPostsQueryDto) {
+    return this.socialService.listPosts(user.id, query);
+  }
+
+  @Get('posts/:id')
+  @Throttle({ socialPostDetail: { limit: 120, ttl: 60 } })
+  @ApiOperation({ summary: 'Retrieve single post with comments' })
+  @ApiOkResponse({ description: 'Post detail plus comments' })
+  getPost(
+    @CurrentUser() user: RequestUser,
+    @Param('id') postId: string,
+    @Query() query: PostDetailQueryDto,
+  ) {
+    return this.socialService.getPostDetail(user.id, postId, query);
+  }
 
   @Post('posts')
   @Throttle({ socialPost: { limit: 20, ttl: 60 } })
