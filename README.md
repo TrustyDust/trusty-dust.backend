@@ -58,14 +58,14 @@ Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`,
 | `/api/v1/social/posts` | POST | Buat post, otomatis +3 DUST (rate limit 20/min/IP).
 | `/api/v1/social/posts/:id/react` | POST | Like/Comment/Repost (+1/+3/+1 DUST, daily cap 50 DUST) — rate limit 60/min/IP.
 | `/api/v1/social/posts/:id/boost` | POST | Burn DUST untuk promote post (rate limit 10/min/IP).
-| `/api/v1/trust/score` | GET | Ambil skor terkini.
+| `/api/v1/trust/score` | GET | Ambil skor terkini (limit 120 req/menit).
 | `/api/v1/zk/generate` | POST | Backend generate proof Noir dari skor yang diberikan (5 request/min/IP).
 | `/api/v1/zk/verify` | POST | Simpan proof Noir setelah diverifikasi on-chain.
 | `/api/v1/jobs/create` | POST | Buat job (butuh proof ≥ minTrustScore, burn 50 DUST, lock escrow) – dibatasi 10 req/5 menit/IP.
 | `/api/v1/jobs/:id/apply` | POST | Worker apply (proof ≥ minTrustScore, burn 20 DUST) – 30 req/5 menit/IP.
 | `/api/v1/jobs/application/:id/submit` | POST | Worker submit deliverable – 30 req/5 menit/IP.
 | `/api/v1/jobs/application/:id/confirm` | POST | Poster konfirmasi, escrow release USDC, TrustEvent +100 – 30 req/5 menit/IP.
-| `/api/v1/tier/me` | GET | Lihat tier + history.
+| `/api/v1/tier/me` | GET | Lihat tier + history (limit 120 req/menit).
 | `/api/v1/notifications` | GET | Ambil notifikasi terbaru (limit 60 req/menit/IP); socket gateway tersedia di `ws://host:PORT` (query `userId` untuk join room pribadi).
 | `/api/v1/chat/conversations` | GET/POST | List percakapan (60 req/min) & buat DM/room baru (20 req/min) otomatis menambahkan creator + participant.
 | `/api/v1/chat/conversations/:id/messages` | GET | Ambil pesan (limit default 50) untuk conversation tertentu (120 req/min).

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { TrustService } from './trust.service';
 import { TrustController } from './trust.controller';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -7,7 +8,7 @@ import { TierModule } from '../tier/tier.module';
 
 @Module({
   imports: [PrismaModule, DustModule, TierModule],
-  providers: [TrustService],
+  providers: [TrustService, ThrottlerGuard],
   controllers: [TrustController],
   exports: [TrustService],
 })

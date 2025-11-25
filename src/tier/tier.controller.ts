@@ -1,5 +1,6 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { TierService } from './tier.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -12,7 +13,8 @@ export class TierController {
   constructor(private readonly tierService: TierService) {}
 
   @Get('me')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(ThrottlerGuard, JwtAuthGuard)
+  @Throttle({ tierMe: { limit: 120, ttl: 60 } })
   @ApiOperation({ summary: 'Retrieve tier + history for current user' })
   @ApiOkResponse({ description: 'Tier name plus historical entries' })
   me(@CurrentUser() user: RequestUser) {

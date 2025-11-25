@@ -1,5 +1,6 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { TrustService } from './trust.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -12,7 +13,8 @@ export class TrustController {
   constructor(private readonly trustService: TrustService) {}
 
   @Get('score')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(ThrottlerGuard, JwtAuthGuard)
+  @Throttle({ trustScore: { limit: 120, ttl: 60 } })
   @ApiOperation({ summary: 'Get computed trust score for current user' })
   @ApiOkResponse({ description: 'Numeric trust score (0-1000)' })
   score(@CurrentUser() user: RequestUser) {
