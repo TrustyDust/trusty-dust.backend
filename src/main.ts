@@ -3,7 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
+import { join } from 'node:path';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -44,8 +44,6 @@ async function bootstrap() {
       'https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js',
       'https://unpkg.com/swagger-ui-dist/swagger-ui-standalone-preset.js',
     ],
-    customCssUrl:
-      '/swagger-dark.css',
   });
 
   console.log(`running on port http://localhost:${process.env.PORT}`);
