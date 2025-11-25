@@ -53,7 +53,7 @@ describe('UsersModule (e2e)', () => {
     const { token, user } = await createUserAndToken();
 
     const response = await request(app.getHttpServer())
-      .get('/users/me')
+      .get('/api/v1/users/me')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
@@ -66,7 +66,7 @@ describe('UsersModule (e2e)', () => {
 
     const payload = { username: 'newname', avatar: 'https://avatar.example/test.png' };
     const response = await request(app.getHttpServer())
-      .patch('/users/me')
+      .patch('/api/v1/users/me')
       .set('Authorization', `Bearer ${token}`)
       .send(payload)
       .expect(200);

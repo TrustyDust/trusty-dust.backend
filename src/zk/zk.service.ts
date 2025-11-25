@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { ZkProver } from './zk.prover';
@@ -11,12 +11,14 @@ export class ZkService {
     private readonly blockchain: BlockchainService,
     private readonly zkProver: ZkProver,
   ) {}
+  private readonly logger = new Logger(ZkService.name);
 
   async generateProof(userId: string, minScore: number): Promise<ZkProofResult> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    this.logger.log(`Generating proof for user ${userId} with minScore ${minScore}`);
 
     const witnessInput = {
       userScore: user.trustScore.toString(),
@@ -34,10 +36,12 @@ export class ZkService {
       },
     });
 
+    this.logger.log(`Proof generated for user ${userId}`);
     return proofResult;
   }
 
   async verifyProof(proof: string, publicInputs: string[]) {
+    this.logger.log('Verifying proof via blockchain');
     const valid = await this.blockchain.verifyTrustProof({ proof, publicInputs });
     if (!valid) {
       throw new BadRequestException('Invalid ZK proof');
@@ -53,12 +57,14 @@ export class ZkService {
           orderBy: { createdAt: 'desc' },
         });
     if (!proof || proof.userId !== userId || proof.minScore < minScore) {
+      this.logger.warn(`Proof assertion failed for user ${userId}`);
       throw new BadRequestException('ZK proof missing or insufficient');
     }
     return proof;
   }
 
   queueProofRequest(userId: string, minScore: number) {
+    this.logger.debug(`Queue proof request for user ${userId}`);
     return this.prisma.trustSnapshot.create({
       data: {
         userId,

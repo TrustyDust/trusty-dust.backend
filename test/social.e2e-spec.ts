@@ -84,7 +84,7 @@ describe('SocialModule (e2e)', () => {
     const { token } = await createUserAndToken();
 
     const response = await request(app.getHttpServer())
-      .post('/social/posts')
+      .post('/api/v1/social/posts')
       .set('Authorization', `Bearer ${token}`)
       .send({ text: 'gm zk', mediaUrls: ['https://img'] })
       .expect(201);
@@ -106,7 +106,7 @@ describe('SocialModule (e2e)', () => {
     });
 
     await request(app.getHttpServer())
-      .post(`/social/posts/${post.id}/react`)
+      .post(`/api/v1/social/posts/${post.id}/react`)
       .set('Authorization', `Bearer ${token}`)
       .send({ type: 'LIKE' })
       .expect(201);
@@ -126,7 +126,7 @@ describe('SocialModule (e2e)', () => {
     });
 
     await request(app.getHttpServer())
-      .post(`/social/posts/${post.id}/boost`)
+      .post(`/api/v1/social/posts/${post.id}/boost`)
       .set('Authorization', `Bearer ${token}`)
       .send({ amount: 5 })
       .expect(201);

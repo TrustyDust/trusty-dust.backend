@@ -52,7 +52,7 @@ describe('TrustModule (e2e)', () => {
     const { token, user } = await createUserAndToken();
 
     const response = await request(app.getHttpServer())
-      .get('/trust/score')
+      .get('/api/v1/trust/score')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 

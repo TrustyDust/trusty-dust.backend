@@ -1,17 +1,21 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrivyUserPayload } from '../auth/interfaces/privy-user.interface';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   findById(id: string) {
+    this.logger.debug(`Fetching user by id ${id}`);
     return this.prisma.user.findUnique({ where: { id } });
   }
 
   findByWallet(walletAddress: string) {
+    this.logger.debug(`Fetching user by wallet ${walletAddress}`);
     return this.prisma.user.findUnique({ where: { walletAddress: walletAddress.toLowerCase() } });
   }
 
@@ -33,6 +37,7 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, dto: UpdateUserDto) {
+    this.logger.log(`Updating profile for user ${userId}`);
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -46,6 +51,7 @@ export class UsersService {
   async ensureExists(userId: string) {
     const user = await this.findById(userId);
     if (!user) {
+      this.logger.warn(`User ${userId} not found`);
       throw new NotFoundException('User not found');
     }
     return user;

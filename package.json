@@ -33,7 +33,7 @@
     "@nestjs/platform-socket.io": "^11.1.9",
     "@nestjs/swagger": "^11.2.3",
     "@nestjs/websockets": "^11.1.9",
-    "@noir-lang/barretenberg": "^2.22.0",
+    "@noir-lang/backend_barretenberg": "^0.32.0",
     "@noir-lang/noir_wasm": "^0.30.0",
     "@prisma/client": "^5.18.0",
     "axios": "^1.13.2",
@@ -88,6 +88,8 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
-    "setupFilesAfterEnv": ["<rootDir>/../jest.setup.ts"]
+    "setupFilesAfterEnv": [
+      "<rootDir>/../jest.setup.ts"
+    ]
   }
 }

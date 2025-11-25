@@ -47,7 +47,7 @@ describe('AuthModule (e2e)', () => {
       .mockResolvedValue({ userId: 'privy-user', walletAddress: '0x1234abcd' });
 
     const response = await request(app.getHttpServer())
-      .post('/auth/login')
+      .post('/api/v1/auth/login')
       .set('Authorization', 'Bearer privy-jwt')
       .send({})
       .expect(201);

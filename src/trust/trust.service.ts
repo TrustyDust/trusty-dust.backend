@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DustService } from '../dust/dust.service';
 import { TierService } from '../tier/tier.service';
 
 @Injectable()
 export class TrustService {
+  private readonly logger = new Logger(TrustService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly dustService: DustService,
@@ -12,6 +13,7 @@ export class TrustService {
   ) {}
 
   async getScore(userId: string) {
+    this.logger.debug(`Fetching trust score for ${userId}`);
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     return user?.trustScore ?? 0;
   }
@@ -24,6 +26,7 @@ export class TrustService {
         delta,
       },
     });
+    this.logger.log(`Recorded trust event ${source} (${delta}) for user ${userId}`);
     return this.recalculateScore(userId);
   }
 
@@ -39,6 +42,7 @@ export class TrustService {
     await this.prisma.user.update({ where: { id: userId }, data: { trustScore: totalScore } });
     await this.prisma.trustSnapshot.create({ data: { userId, score: totalScore } });
     await this.tierService.handleScoreChange(userId, totalScore);
+    this.logger.log(`New trust score for ${userId}: ${totalScore}`);
 
     return totalScore;
   }

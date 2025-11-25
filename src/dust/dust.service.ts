@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 const DAILY_REWARD_CAP = 50;
@@ -6,11 +6,13 @@ const DAILY_REWARD_CAP = 50;
 @Injectable()
 export class DustService {
   private readonly dustSymbol = 'DUST';
+  private readonly logger = new Logger(DustService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
   async rewardUser(userId: string, amount: number, reason: string) {
     const balance = await this.ensureUserBalance(userId);
+    this.logger.log(`Rewarding user ${userId} with ${amount} DUST for ${reason}`);
     const now = new Date();
     let dailyEarned = balance.dailyEarned;
     let checkpoint = balance.dailyEarnedCheckpoint;
@@ -42,8 +44,10 @@ export class DustService {
   async spendDust(userId: string, amount: number, memo: string) {
     const balance = await this.ensureUserBalance(userId);
     if (balance.balance < amount) {
+      this.logger.warn(`User ${userId} insufficient DUST for ${memo}`);
       throw new BadRequestException('Insufficient DUST');
     }
+    this.logger.log(`Spending ${amount} DUST from user ${userId} for ${memo}`);
     return this.prisma.userTokenBalance.update({
       where: { id: balance.id },
       data: {

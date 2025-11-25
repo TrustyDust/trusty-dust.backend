@@ -7,6 +7,7 @@ export const CIRCUIT_BUILD = join(CIRCUIT_ROOT, 'build');
 
 export const CIRCUIT_FILES = {
   acir: 'trust_score.acir.gz',
+  abi: 'trust_score.json',
   circuit: 'circuit.json',
   provingKey: 'trust_score.proving_key',
   verificationKey: 'trust_score.verification_key',

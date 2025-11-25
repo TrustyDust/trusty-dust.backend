@@ -13,25 +13,10 @@ jest.mock('@noir-lang/noir_wasm', () => {
   };
 }, { virtual: true });
 
-jest.mock('@noir-lang/barretenberg', () => {
-  class MockBarretenbergWasm {
-    static async new() {
-      return new MockBarretenbergWasm();
-    }
-    async initSRS() {}
-  }
-
-  class MockStandardProver {
-    static async new() {
-      return new MockStandardProver();
-    }
-    async prove() {
-      return new Uint8Array();
-    }
-  }
-
+jest.mock('@noir-lang/backend_barretenberg', () => {
   return {
-    BarretenbergWasm: MockBarretenbergWasm,
-    StandardProver: MockStandardProver,
+    BarretenbergBackend: jest.fn().mockImplementation(() => ({
+      generateProof: jest.fn().mockResolvedValue({ proof: new Uint8Array(), publicInputs: ['1'] }),
+    })),
   };
 }, { virtual: true });

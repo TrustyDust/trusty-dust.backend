@@ -80,13 +80,16 @@ export class BlockchainService {
   async lockEscrow(jobId: number, poster: string, worker: string, amount: bigint) {
     const contractAddress = this.configService.get<string>('ESCROW_FACTORY_ADDRESS');
     if (!contractAddress) {
+      this.logger.warn('ESCROW_FACTORY_ADDRESS missing, returning offchain placeholder');
       return `offchain-lock-${jobId}-${Date.now()}`;
     }
     const wallet = this.getWalletClient();
     if (!wallet) {
+      this.logger.warn('Wallet client missing, simulating lockEscrow');
       return `simulated-lock-${jobId}-${Date.now()}`;
     }
     const abi = this.abiLoader.loadAbi('escrow-factory.json');
+    this.logger.log(`writeContract lockEscrow job ${jobId}`);
     return wallet.writeContract({
       address: contractAddress as Address,
       abi,
@@ -100,13 +103,16 @@ export class BlockchainService {
   async releaseEscrow(jobId: number) {
     const contractAddress = this.configService.get<string>('ESCROW_FACTORY_ADDRESS');
     if (!contractAddress) {
+      this.logger.warn('ESCROW_FACTORY_ADDRESS missing, returning offchain release');
       return `offchain-release-${jobId}-${Date.now()}`;
     }
     const wallet = this.getWalletClient();
     if (!wallet) {
+      this.logger.warn('Wallet client missing, simulating releaseEscrow');
       return `simulated-release-${jobId}-${Date.now()}`;
     }
     const abi = this.abiLoader.loadAbi('escrow-factory.json');
+    this.logger.log(`writeContract releaseEscrow job ${jobId}`);
     return wallet.writeContract({
       address: contractAddress as Address,
       abi,
@@ -120,13 +126,16 @@ export class BlockchainService {
   async refundEscrow(jobId: number) {
     const contractAddress = this.configService.get<string>('ESCROW_FACTORY_ADDRESS');
     if (!contractAddress) {
+      this.logger.warn('ESCROW_FACTORY_ADDRESS missing, returning offchain refund');
       return `offchain-refund-${jobId}-${Date.now()}`;
     }
     const wallet = this.getWalletClient();
     if (!wallet) {
+      this.logger.warn('Wallet client missing, simulating refundEscrow');
       return `simulated-refund-${jobId}-${Date.now()}`;
     }
     const abi = this.abiLoader.loadAbi('escrow-factory.json');
+    this.logger.log(`writeContract refundEscrow job ${jobId}`);
     return wallet.writeContract({
       address: contractAddress as Address,
       abi,
@@ -151,6 +160,7 @@ export class BlockchainService {
     const args = action === 'mint'
       ? [this.normalizeAddress(owner as string), BigInt(tokenId), tier]
       : [BigInt(tokenId), tier];
+    this.logger.log(`writeContract SBT ${functionName} token ${tokenId}`);
     return wallet.writeContract({
       address: contractAddress as Address,
       abi,
@@ -171,6 +181,7 @@ export class BlockchainService {
       return `simulated-burn-${postId}-${Date.now()}`;
     }
     const abi = this.abiLoader.loadAbi('dust-token.json');
+    this.logger.log(`writeContract burnDustBoost post ${postId} amount ${amount}`);
     return wallet.writeContract({
       address: contractAddress as Address,
       abi,

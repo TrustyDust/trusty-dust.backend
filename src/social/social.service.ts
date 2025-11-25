@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { DustService } from '../dust/dust.service';
@@ -16,6 +16,8 @@ const DUST_REWARD_BY_ACTION: Record<ReactionAction, number> = {
 
 @Injectable()
 export class SocialService {
+  private readonly logger = new Logger(SocialService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly dustService: DustService,
@@ -25,6 +27,7 @@ export class SocialService {
   ) {}
 
   async createPost(userId: string, dto: CreatePostDto) {
+    this.logger.log(`User ${userId} creating post`);
     const post = await this.prisma.post.create({
       data: {
         authorId: userId,
@@ -40,6 +43,7 @@ export class SocialService {
     await this.dustService.rewardUser(userId, 3, 'post_created');
     await this.trustService.recordEvent(userId, 'post_created', 3);
     await this.notifications.notify(userId, 'Post published. +3 DUST');
+    this.logger.log(`Post ${post.id} created by user ${userId}`);
 
     return post;
   }
@@ -61,11 +65,13 @@ export class SocialService {
 
     const reward = DUST_REWARD_BY_ACTION[dto.type] ?? 0;
     if (reward > 0) {
+      this.logger.log(`Reward ${reward} DUST for user ${userId} reaction ${dto.type}`);
       await this.dustService.rewardUser(userId, reward, `post_${dto.type.toLowerCase()}`);
       await this.trustService.recordEvent(userId, `post_${dto.type.toLowerCase()}`, reward);
     }
 
     await this.notifications.notify(post.authorId, 'New interaction on your post');
+    this.logger.debug(`User ${userId} reacted to post ${postId}`);
     return reaction;
   }
 
@@ -91,6 +97,7 @@ export class SocialService {
 
     await this.blockchain.burnDustBoost(booster.walletAddress, BigInt(dto.amount), boost.sequence);
     await this.notifications.notify(post.authorId, 'Your post received a boost');
+    this.logger.log(`User ${userId} boosted post ${postId} with ${dto.amount} DUST`);
     return boost;
   }
 }

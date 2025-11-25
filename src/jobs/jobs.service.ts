@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DustService } from '../dust/dust.service';
 import { TrustService } from '../trust/trust.service';
@@ -12,6 +12,7 @@ import { ConfirmWorkDto } from './dto/confirm-work.dto';
 
 @Injectable()
 export class JobsService {
+  private readonly logger = new Logger(JobsService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly dustService: DustService,
@@ -24,6 +25,7 @@ export class JobsService {
   async createJob(userId: string, dto: CreateJobDto) {
     await this.zkService.assertProof(userId, dto.minTrustScore, dto.zkProofId);
     await this.dustService.spendDust(userId, 50, 'job_create');
+    this.logger.log(`User ${userId} creating job ${dto.title}`);
     const creator = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!creator) {
       throw new NotFoundException('User missing');
@@ -42,6 +44,7 @@ export class JobsService {
 
     await this.escrowService.lock(job.id, job.chainRef, creator.walletAddress, creator.walletAddress, dto.reward);
     await this.notificationService.notify(userId, 'Job created and escrow locked');
+    this.logger.log(`Job ${job.id} created by ${userId}`);
     return job;
   }
 
@@ -56,6 +59,7 @@ export class JobsService {
 
     await this.zkService.assertProof(userId, job.minTrustScore, dto.zkProofId);
     await this.dustService.spendDust(userId, 20, 'job_apply');
+    this.logger.log(`User ${userId} applying to job ${jobId}`);
 
     const existing = await this.prisma.jobApplication.findFirst({ where: { jobId, workerId: userId } });
     if (existing) {
@@ -92,6 +96,7 @@ export class JobsService {
     if (job) {
       await this.notificationService.notify(job.creatorId, 'Work submitted for review');
     }
+    this.logger.log(`Application ${applicationId} submitted by ${userId}`);
     return updated;
   }
 
@@ -117,6 +122,7 @@ export class JobsService {
     await this.escrowService.release(job.id, job.chainRef);
     await this.notificationService.notify(application.workerId, 'Payment released for your job');
     await this.trustService.recordEvent(application.workerId, 'job_completed', 100);
+    this.logger.log(`Application ${applicationId} confirmed by poster ${userId}`);
 
     return updatedApplication;
   }

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import initNoirWasm, { Noir } from '@noir-lang/noir_wasm';
-import { BarretenbergWasm, StandardProver } from '@noir-lang/barretenberg';
+import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { ZkCompiler } from './zk.compiler';
 import { ZkProofResult, ZkWitnessInput } from './zk.types';
 import { bufferToHex } from './zk.utils';
@@ -9,8 +9,7 @@ import { bufferToHex } from './zk.utils';
 export class ZkProver {
   private readonly logger = new Logger(ZkProver.name);
   private noir?: Noir;
-  private barretenberg?: BarretenbergWasm;
-  private prover?: StandardProver;
+  private backend?: BarretenbergBackend;
 
   constructor(private readonly compiler: ZkCompiler) {}
 
@@ -20,36 +19,26 @@ export class ZkProver {
       this.noir = new Noir(await this.compiler.getAcir());
     }
 
-    if (!this.barretenberg) {
-      this.barretenberg = await BarretenbergWasm.new();
-      await this.barretenberg.initSRS(1 << 18);
-    }
-
-    if (!this.prover) {
-      this.prover = await StandardProver.new(
-        this.barretenberg!,
-        await this.compiler.getAcir(),
-        await this.compiler.getProvingKey(),
-      );
+    if (!this.backend) {
+      this.backend = new BarretenbergBackend(await this.compiler.getCompiledCircuit());
     }
   }
 
   async createWitness(input: ZkWitnessInput) {
     await this.ensureInitialized();
+    this.logger.debug(`Creating witness for userScore ${input.userScore} and minScore ${input.minScore}`);
     return this.noir!.execute(input as any);
   }
 
   async generateProof(input: ZkWitnessInput): Promise<ZkProofResult> {
     await this.ensureInitialized();
+    this.logger.log('Generating Noir proof via backend');
     const execution = await this.createWitness(input);
-    const proofBuffer = await this.prover!.prove(execution.witness);
-    const publicInputs = Array.isArray(execution.returnValue)
-      ? execution.returnValue.map((value: any) => value.toString())
-      : [execution.returnValue?.toString?.() ?? '0'];
+    const proofData = await this.backend!.generateProof(execution.witness);
 
     return {
-      proof: bufferToHex(proofBuffer),
-      publicInputs,
+      proof: bufferToHex(proofData.proof),
+      publicInputs: proofData.publicInputs,
     };
   }
 }

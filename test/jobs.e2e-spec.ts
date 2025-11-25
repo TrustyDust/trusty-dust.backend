@@ -87,7 +87,7 @@ describe('JobsModule (e2e)', () => {
     };
 
     const response = await request(app.getHttpServer())
-      .post('/jobs/create')
+      .post('/api/v1/jobs/create')
       .set('Authorization', `Bearer ${token}`)
       .send(payload)
       .expect(201);
@@ -129,7 +129,7 @@ describe('JobsModule (e2e)', () => {
     const token = await jwtService.signAsync({ userId: worker.id, walletAddress: worker.walletAddress });
 
     const response = await request(app.getHttpServer())
-      .post(`/jobs/${job.id}/apply`)
+      .post(`/api/v1/jobs/${job.id}/apply`)
       .set('Authorization', `Bearer ${token}`)
       .send({})
       .expect(201);
@@ -167,7 +167,7 @@ describe('JobsModule (e2e)', () => {
     const token = await jwtService.signAsync({ userId: worker.id, walletAddress: worker.walletAddress });
 
     const response = await request(app.getHttpServer())
-      .post(`/jobs/application/${application.id}/submit`)
+      .post(`/api/v1/jobs/application/${application.id}/submit`)
       .set('Authorization', `Bearer ${token}`)
       .send({ workSubmissionText: 'done' })
       .expect(201);
@@ -213,7 +213,7 @@ describe('JobsModule (e2e)', () => {
     const token = await jwtService.signAsync({ userId: poster.id, walletAddress: poster.walletAddress });
 
     const response = await request(app.getHttpServer())
-      .post(`/jobs/application/${application.id}/confirm`)
+      .post(`/api/v1/jobs/application/${application.id}/confirm`)
       .set('Authorization', `Bearer ${token}`)
       .send({ txHash: '0xtx' })
       .expect(201);

@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { CompiledCircuit, Abi } from '@noir-lang/types';
 import { CIRCUIT_BUILD, CIRCUIT_FILES, readAcirBuffer } from './zk.utils';
 
 interface CircuitManifest {
@@ -16,6 +17,7 @@ export class ZkCompiler implements OnModuleInit {
   private circuitManifest?: CircuitManifest;
   private provingKey?: Uint8Array;
   private verificationKey?: Uint8Array;
+  private compiledCircuit?: CompiledCircuit;
 
   async onModuleInit() {
     try {
@@ -26,12 +28,21 @@ export class ZkCompiler implements OnModuleInit {
   }
 
   async loadArtifacts() {
-    this.acir = readAcirBuffer();
+    const acirUncompressed = readAcirBuffer();
+    this.acir = acirUncompressed;
     this.circuitManifest = JSON.parse(
       readFileSync(join(CIRCUIT_BUILD, CIRCUIT_FILES.circuit), 'utf-8'),
     ) as CircuitManifest;
-    this.provingKey = readFileSync(join(CIRCUIT_BUILD, CIRCUIT_FILES.provingKey));
-    this.verificationKey = readFileSync(join(CIRCUIT_BUILD, CIRCUIT_FILES.verificationKey));
+    this.provingKey = readFileSync(
+      join(CIRCUIT_BUILD, CIRCUIT_FILES.provingKey),
+    );
+    this.verificationKey = readFileSync(
+      join(CIRCUIT_BUILD, CIRCUIT_FILES.verificationKey),
+    );
+    this.compiledCircuit = {
+      bytecode: Buffer.from(acirUncompressed).toString('base64'),
+      abi: this.loadAbiFromCircuit(),
+    };
     this.logger.log(
       `Circuit ${this.circuitManifest?.name ?? 'unknown'} loaded with backend ${this.circuitManifest?.backend ?? 'n/a'}`,
     );
@@ -60,5 +71,39 @@ export class ZkCompiler implements OnModuleInit {
 
   hasBuildArtifacts() {
     return existsSync(join(CIRCUIT_BUILD, CIRCUIT_FILES.acir));
+  }
+
+  private loadAbiFromCircuit(): Abi {
+    const candidates = [
+      join(CIRCUIT_BUILD, CIRCUIT_FILES.abi),
+      join(CIRCUIT_BUILD, CIRCUIT_FILES.circuit),
+    ];
+    for (const path of candidates) {
+      try {
+        if (!existsSync(path)) {
+          continue;
+        }
+        const data = JSON.parse(readFileSync(path, 'utf-8'));
+        if (data?.abi) {
+          return data.abi as Abi;
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to parse ABI from ${path}: ${error}`);
+      }
+    }
+    return {
+      parameters: [],
+      param_witnesses: {},
+      return_type: null,
+      return_witnesses: [],
+      error_types: {},
+    };
+  }
+
+  async getCompiledCircuit() {
+    if (!this.compiledCircuit) {
+      await this.loadArtifacts();
+    }
+    return this.compiledCircuit!;
   }
 }

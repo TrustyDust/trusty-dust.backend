@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationGateway } from './notification.gateway';
 
 @Injectable()
 export class NotificationService {
+  private readonly logger = new Logger(NotificationService.name);
+
   constructor(private readonly prisma: PrismaService, private readonly gateway: NotificationGateway) {}
 
   async notify(userId: string, message: string) {
@@ -14,10 +16,12 @@ export class NotificationService {
       },
     });
     this.gateway.emit(userId, notification);
+    this.logger.log(`Notification sent to ${userId}: ${message}`);
     return notification;
   }
 
   list(userId: string) {
+    this.logger.debug(`Fetching notifications for ${userId}`);
     return this.prisma.notification.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
   }
 }

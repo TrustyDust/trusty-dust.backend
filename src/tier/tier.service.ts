@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SbtService } from '../sbt/sbt.service';
 import { NotificationService } from '../notifications/notification.service';
@@ -13,6 +13,7 @@ const TIERS = [
 
 @Injectable()
 export class TierService {
+  private readonly logger = new Logger(TierService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly sbtService: SbtService,
@@ -33,10 +34,12 @@ export class TierService {
   async handleScoreChange(userId: string, score: number) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
+      this.logger.warn(`Cannot adjust tier, user ${userId} missing`);
       return;
     }
     const nextTier = this.resolveTier(score);
     if (nextTier === user.tier) {
+      this.logger.debug(`Tier unchanged for ${userId}`);
       return;
     }
 
@@ -48,6 +51,7 @@ export class TierService {
     await this.sbtService.ensureSbt(userId, nextTier, user.walletAddress);
     await this.zkService.queueProofRequest(userId, score);
     await this.notificationService.notify(userId, `Tier upgraded to ${nextTier}`);
+    this.logger.log(`User ${userId} upgraded to ${nextTier}`);
   }
 
   async getMyTier(userId: string) {

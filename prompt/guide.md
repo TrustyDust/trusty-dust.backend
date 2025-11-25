@@ -1,5 +1,5 @@
 # TrustyDust Backend Integration Guide
-This document explains how the frontend (FE) should call the backend, the execution order, payloads, and local testing tips. Replace `https://api.trustydust.example` with the relevant environment base URL.
+This document explains how the frontend (FE) should call the backend, the execution order, payloads, and local testing tips. All endpoints are served under the prefix `/api/v1`, e.g. `https://api.trustydust.example/api/v1/auth/login`.
 
 ## 1. Authentication: Privy → Backend JWT
 1. FE logs in with Privy SDK and receives a Privy JWT (`privy_jwt`).

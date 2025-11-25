@@ -53,7 +53,7 @@ describe('ZkModule (e2e)', () => {
       },
     });
     const response = await request(app.getHttpServer())
-      .post('/zk/prove')
+      .post('/api/v1/zk/prove')
       .send({ userId: 'user-1', minScore: 500 })
       .expect(201);
 
@@ -64,7 +64,7 @@ describe('ZkModule (e2e)', () => {
 
   it('POST /zk/verify returns valid flag', async () => {
     const response = await request(app.getHttpServer())
-      .post('/zk/verify')
+      .post('/api/v1/zk/verify')
       .send({ proof: '0xproof', publicInputs: ['1'] })
       .expect(201);
 

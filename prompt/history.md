@@ -45,3 +45,6 @@
 
 ## 8. Frontend Integration Guide
 - Menyusun `prompt/guide.md` berbahasa Indonesia lalu menerjemahkan ke Inggris agar tim FE global bisa mengikuti alur auth/social/trust/jobs/ZK/notification beserta payload dan tips testing.
+
+## 9. API Prefix Update
+- Menetapkan global prefix `/api/v1` di `main.ts` dan memperbarui seluruh e2e test, README, serta guide agar FE menggunakan path baru tersebut.

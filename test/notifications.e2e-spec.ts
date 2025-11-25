@@ -48,7 +48,7 @@ describe('NotificationModule (e2e)', () => {
     const token = await jwtService.signAsync({ userId: user.id, walletAddress: user.walletAddress });
 
     const response = await request(app.getHttpServer())
-      .get('/notifications')
+      .get('/api/v1/notifications')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 

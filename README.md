@@ -46,19 +46,20 @@ Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`,
 ## Endpoint Ringkas
 | Endpoint | Method | Keterangan |
 | --- | --- | --- |
-| `/auth/login` | POST | FE kirim `Authorization: Bearer <privy_jwt>`, backend verifikasi Privy lalu balas backend JWT.
-| `/users/me` | GET/PATCH | Lihat & update profil (JWT required).
-| `/social/posts` | POST | Buat post, otomatis +3 DUST.
-| `/social/posts/:id/react` | POST | Like/Comment/Repost (+1/+3/+1 DUST, daily cap 50 DUST).
-| `/social/posts/:id/boost` | POST | Burn DUST untuk promote post.
-| `/trust/score` | GET | Ambil skor terkini.
-| `/zk/verify` | POST | Simpan proof Noir setelah diverifikasi on-chain.
-| `/jobs/create` | POST | Buat job (butuh proof ≥ minTrustScore, burn 50 DUST, lock escrow).
-| `/jobs/:id/apply` | POST | Worker apply (proof ≥ minTrustScore, burn 20 DUST).
-| `/jobs/application/:id/submit` | POST | Worker submit deliverable.
-| `/jobs/application/:id/confirm` | POST | Poster konfirmasi, escrow release USDC, TrustEvent +100.
-| `/tier/me` | GET | Lihat tier + history.
-| `/notifications` | GET | Ambil notifikasi terbaru; socket gateway tersedia di `ws://host:PORT` (query `userId` untuk join room pribadi).
+| `/api/v1/auth/login` | POST | FE kirim `Authorization: Bearer <privy_jwt>`, backend verifikasi Privy lalu balas backend JWT.
+| `/api/v1/users/me` | GET/PATCH | Lihat & update profil (JWT required).
+| `/api/v1/social/posts` | POST | Buat post, otomatis +3 DUST.
+| `/api/v1/social/posts/:id/react` | POST | Like/Comment/Repost (+1/+3/+1 DUST, daily cap 50 DUST).
+| `/api/v1/social/posts/:id/boost` | POST | Burn DUST untuk promote post.
+| `/api/v1/trust/score` | GET | Ambil skor terkini.
+| `/api/v1/zk/prove` | POST | Backend generate proof Noir.
+| `/api/v1/zk/verify` | POST | Simpan proof Noir setelah diverifikasi on-chain.
+| `/api/v1/jobs/create` | POST | Buat job (butuh proof ≥ minTrustScore, burn 50 DUST, lock escrow).
+| `/api/v1/jobs/:id/apply` | POST | Worker apply (proof ≥ minTrustScore, burn 20 DUST).
+| `/api/v1/jobs/application/:id/submit` | POST | Worker submit deliverable.
+| `/api/v1/jobs/application/:id/confirm` | POST | Poster konfirmasi, escrow release USDC, TrustEvent +100.
+| `/api/v1/tier/me` | GET | Lihat tier + history.
+| `/api/v1/notifications` | GET | Ambil notifikasi terbaru; socket gateway tersedia di `ws://host:PORT` (query `userId` untuk join room pribadi).
 
 Semua endpoint (kecuali `/auth/login` & `/health`) memakai `JwtAuthGuard`.
 

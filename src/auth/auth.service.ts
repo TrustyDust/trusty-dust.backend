@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import axios, { AxiosInstance } from 'axios';
 import { ConfigService } from '@nestjs/config';
@@ -9,6 +9,7 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 @Injectable()
 export class AuthService {
   private readonly http: AxiosInstance;
+  private readonly logger = new Logger(AuthService.name);
 
   constructor(
     private readonly jwtService: JwtService,
@@ -25,6 +26,7 @@ export class AuthService {
     }
 
     try {
+      this.logger.log('Verifying Privy token');
       const { data } = await this.http.post(
         '/verify',
         { token },
@@ -33,6 +35,7 @@ export class AuthService {
       const walletAddress =
         data?.user?.wallet?.address ?? data?.user?.walletAddress ?? data?.walletAddress;
       if (!walletAddress) {
+        this.logger.warn('Privy payload missing wallet address');
         throw new UnauthorizedException('Privy payload missing wallet');
       }
 
@@ -43,16 +46,19 @@ export class AuthService {
         verifiedAt: data?.verified_at,
       };
     } catch (error) {
+      this.logger.error('Privy token verification failed', error as Error);
       throw new UnauthorizedException('Privy token verification failed');
     }
   }
 
   async loginWithPrivyToken(privyToken: string) {
+    this.logger.log('Login with Privy token requested');
     const privyPayload = await this.verifyPrivyToken(privyToken);
     return this.issueBackendToken(privyPayload);
   }
 
   async issueBackendToken(privyPayload: PrivyUserPayload) {
+    this.logger.log(`Issuing backend token for wallet ${privyPayload.walletAddress}`);
     const user = await this.usersService.upsertFromPrivy(privyPayload);
     const payload: JwtPayload = { userId: user.id, walletAddress: user.walletAddress };
     const accessToken = await this.jwtService.signAsync(payload, {
@@ -67,6 +73,7 @@ export class AuthService {
   }
 
   async validateUser(payload: JwtPayload) {
+    this.logger.debug(`Validating user ${payload.userId}`);
     return this.usersService.findById(payload.userId);
   }
 }
