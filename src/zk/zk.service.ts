@@ -59,7 +59,7 @@ export class ZkService {
           where: { userId, minScore: { gte: minScore } },
           orderBy: { createdAt: 'desc' },
         });
-    if (!proof || proof.userId !== userId || proof.minScore < minScore) {
+    if (proof?.userId !== userId || proof.minScore < minScore) {
       this.logger.warn(`Proof assertion failed for user ${userId}`);
       throw new BadRequestException('ZK proof missing or insufficient');
     }
