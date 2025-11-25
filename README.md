@@ -63,7 +63,9 @@ Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`,
 | `/api/v1/zk/verify` | POST | Simpan proof Noir setelah diverifikasi on-chain.
 | `/api/v1/jobs/create` | POST | Buat job (butuh proof ≥ minTrustScore, burn 50 DUST, lock escrow) – dibatasi 10 req/5 menit/IP.
 | `/api/v1/jobs/:id/apply` | POST | Worker apply (proof ≥ minTrustScore, burn 20 DUST) – 30 req/5 menit/IP.
+| `/api/v1/jobs/:id/applicants` | GET | Daftar pelamar untuk job milik poster (limit 60 req/menit; hanya bisa diakses owner job).
 | `/api/v1/jobs/application/:id/submit` | POST | Worker submit deliverable – 30 req/5 menit/IP.
+| `/api/v1/jobs/me` | GET | Daftar job yang diposting oleh user saat ini (limit 60 req/menit).
 | `/api/v1/jobs/application/:id/confirm` | POST | Poster konfirmasi, escrow release USDC, TrustEvent +100 – 30 req/5 menit/IP.
 | `/api/v1/tier/me` | GET | Lihat tier + history (limit 120 req/menit).
 | `/api/v1/notifications` | GET | Ambil notifikasi terbaru (limit 60 req/menit/IP); socket gateway tersedia di `ws://host:PORT` (query `userId` untuk join room pribadi).

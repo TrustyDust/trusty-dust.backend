@@ -67,9 +67,43 @@ export class JobsService {
     return job;
   }
 
+  async listMyJobs(userId: string) {
+    return this.prisma.job.findMany({
+      where: { creatorId: userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        applications: {
+          select: { id: true, status: true, workerId: true },
+        },
+        escrow: true,
+      },
+    });
+  }
+
+  async listApplicants(jobId: string, requesterId: string) {
+    const job = await this.prisma.job.findUnique({
+      where: { id: jobId },
+      select: { creatorId: true },
+    });
+    if (!job) {
+      throw new NotFoundException('Job missing');
+    }
+    if (job.creatorId !== requesterId) {
+      throw new BadRequestException('Only job owner can view applicants');
+    }
+
+    return this.prisma.jobApplication.findMany({
+      where: { jobId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        worker: { select: { id: true, username: true, walletAddress: true, tier: true } },
+      },
+    });
+  }
+
   async apply(jobId: string, userId: string, dto: ApplyJobDto) {
     const job = await this.prisma.job.findUnique({ where: { id: jobId } });
-    if (!job || job.status !== 'OPEN') {
+    if (job?.status !== 'OPEN') {
       throw new NotFoundException('Job unavailable');
     }
     if (job.creatorId === userId) {
@@ -99,7 +133,7 @@ export class JobsService {
 
   async submit(applicationId: string, userId: string, dto: SubmitWorkDto) {
     const application = await this.prisma.jobApplication.findUnique({ where: { id: applicationId } });
-    if (!application || application.workerId !== userId) {
+    if (application?.workerId !== userId) {
       throw new NotFoundException('Application missing');
     }
     if (application.status !== 'APPLIED') {

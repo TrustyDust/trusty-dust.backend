@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JobsService } from './jobs.service';
@@ -16,6 +16,22 @@ import { ConfirmWorkDto } from './dto/confirm-work.dto';
 @UseGuards(ThrottlerGuard, JwtAuthGuard)
 export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
+
+  @Get('me')
+  @Throttle({ jobsList: { limit: 60, ttl: 60 } })
+  @ApiOperation({ summary: 'List jobs created by current user' })
+  @ApiOkResponse({ description: 'Array of job postings owned by the requester' })
+  listMyJobs(@CurrentUser() user: RequestUser) {
+    return this.jobsService.listMyJobs(user.id);
+  }
+
+  @Get(':id/applicants')
+  @Throttle({ jobsApplicants: { limit: 60, ttl: 60 } })
+  @ApiOperation({ summary: 'List applicants for a job owned by the current user' })
+  @ApiOkResponse({ description: 'Array of job applications for the job' })
+  listApplicants(@CurrentUser() user: RequestUser, @Param('id') jobId: string) {
+    return this.jobsService.listApplicants(jobId, user.id);
+  }
 
   @Post('create')
   @Throttle({ jobsCreate: { limit: 10, ttl: 300 } })

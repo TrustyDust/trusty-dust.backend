@@ -242,4 +242,52 @@ describe('JobsModule (e2e)', () => {
     expect(response.body.status).toBe('CONFIRMED');
     expect(escrowMock.release).toHaveBeenCalledWith(job.id, job.chainRef);
   });
+
+  it('GET /jobs/me lists posted jobs', async () => {
+    const poster = await prisma.user.create({
+      data: {
+        walletAddress: '0xposterlist',
+        username: 'posterlist',
+        tier: 'Dust',
+        trustScore: 600,
+      },
+    });
+    await prisma.job.createMany({
+      data: [
+        {
+          creatorId: poster.id,
+          title: 'Job A',
+          description: 'desc',
+          companyName: 'Studio A',
+          location: 'Remote',
+          jobType: 'Contract',
+          requirements: [],
+          minTrustScore: 100,
+          reward: 100,
+          status: 'OPEN',
+        },
+        {
+          creatorId: poster.id,
+          title: 'Job B',
+          description: 'desc',
+          companyName: 'Studio B',
+          location: 'Remote',
+          jobType: 'Gig',
+          requirements: [],
+          minTrustScore: 150,
+          reward: 200,
+          status: 'OPEN',
+        },
+      ],
+    });
+    const token = await jwtService.signAsync({ userId: poster.id, walletAddress: poster.walletAddress });
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/jobs/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body).toHaveLength(2);
+    expect(response.body[0].creatorId).toBe(poster.id);
+  });
 });

@@ -85,6 +85,8 @@
   - `/wallet-reputation/analyze` → 10 req per 5 menit.
   - `/zk/generate` → 5 req/menit, `/zk/verify` → 30 req/menit.
   - Jobs (`/jobs/create`, `/jobs/:id/apply`, `/jobs/application/:id/(submit|confirm)`) → batas 10/30 req per 5 menit untuk mencegah spam posting/aplikasi.
+  - `/jobs/me` dan `/jobs/:id/applicants` → 60 req/menit untuk list job dan pelamar.
+  - `/jobs/me` → 60 req/menit untuk list job milik poster.
   - `/notifications` GET → 60 req/menit agar polling tidak berlebihan.
   - Chat (`/chat/conversations`, `/messages`) → batas 60 req/menit untuk list/send message dan 20 req/menit untuk pembuatan conversation.
   - Trust & Tier reads (`/trust/score`, `/tier/me`) → 120 req/menit agar dashboard polling tidak berlebihan.
