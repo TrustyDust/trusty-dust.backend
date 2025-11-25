@@ -44,6 +44,7 @@ async function bootstrap() {
       'https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js',
       'https://unpkg.com/swagger-ui-dist/swagger-ui-standalone-preset.js',
     ],
+    customCssUrl: 'https://unpkg.com/swagger-ui-dist/swagger-ui.css',
   });
 
   console.log(`running on port http://localhost:${process.env.PORT}`);
