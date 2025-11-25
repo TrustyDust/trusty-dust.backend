@@ -3,7 +3,16 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  await prisma.userTokenBalance.deleteMany();
+  await prisma.follow.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.chatMessage.deleteMany();
+  await prisma.chatParticipant.deleteMany();
+  await prisma.chatConversation.deleteMany();
+  await prisma.walletReputation.deleteMany();
+  await prisma.zkProof.deleteMany();
+  await prisma.tierHistory.deleteMany();
+  await prisma.trustSnapshot.deleteMany();
+  await prisma.trustEvent.deleteMany();
   await prisma.postBoost.deleteMany();
   await prisma.postReaction.deleteMany();
   await prisma.postMedia.deleteMany();
@@ -11,6 +20,8 @@ async function main() {
   await prisma.jobApplication.deleteMany();
   await prisma.jobEscrow.deleteMany();
   await prisma.job.deleteMany();
+  await prisma.userTokenBalance.deleteMany();
+  await prisma.sbtToken.deleteMany();
   await prisma.user.deleteMany();
 
   const alice = await prisma.user.create({

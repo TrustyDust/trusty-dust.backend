@@ -2,9 +2,13 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
   app.setGlobalPrefix('api/v1');
   app.enableCors({ origin: '*', credentials: true });
   app.useGlobalPipes(
@@ -31,6 +35,7 @@ async function bootstrap() {
     )
     .build();
   const document = SwaggerModule.createDocument(app, config);
+  app.useStaticAssets(join(__dirname, '..', 'public'));
   SwaggerModule.setup('/api/docs', app, document, {
     customSiteTitle: 'TrustyDust API Docs',
     swaggerOptions: { persistAuthorization: true },
@@ -39,7 +44,8 @@ async function bootstrap() {
       'https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js',
       'https://unpkg.com/swagger-ui-dist/swagger-ui-standalone-preset.js',
     ],
-    customCssUrl: 'https://unpkg.com/swagger-ui-dist/swagger-ui.css',
+    customCssUrl:
+      '/swagger-dark.css',
   });
 
   console.log(`running on port http://localhost:${process.env.PORT}`);
