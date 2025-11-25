@@ -7,12 +7,13 @@ Backend MVP untuk ekosistem TrustyDust yang menggabungkan reputasi sosial, job e
 - **User Module**: CRUD profil dasar (`walletAddress`, `username`, `avatar`, `tier`, `trustScore`).
 - **Social Module**: Posting, like/comment/repost, dan boost dengan perhitungan reward DUST serta pencatatan `TrustEvent`.
 - **Trust Module**: Mesin skor (`baseScore`, `dustMultiplier`, `totalScore`) + trigger otomatis ke Tier Module.
-- **ZK Module**: Endpoint `/zk/prove` untuk backend Noir proving & `/zk/verify` untuk cek kontrak `TrustVerification.sol`, semuanya tersinkron dengan Prisma `ZkProof`.
+- **ZK Module**: Endpoint `/zk/generate` untuk backend Noir proving & `/zk/verify` untuk cek kontrak `TrustVerification.sol`, semuanya tersinkron dengan Prisma `ZkProof`.
 - **DUST Module**: Akuntansi off-chain (reward, burn untuk boost, multiplier hook).
 - **Tier & SBT Module**: Otomatis upgrade tier, update metadata SBT, dan notifikasi user.
 - **Jobs + Escrow Module**: Flow full (create/apply/submit/confirm), mengunci USDC on-chain lewat viem escrow client.
 - **Notification Module**: REST list + Websocket gateway untuk push updates.
 - **Chat Module**: DM antar user untuk koordinasi job/social, persistence via Prisma + broadcast realtime menggunakan Supabase Realtime channel.
+- **Hybrid Wallet Reputation**: Kolektor pseudo on-chain + heuristic scoring + overlay Gemini (opsional) untuk memperoleh skor + reasoning sebelum disimpan.
 - **Onchain Collector + AI Scoring**: Pseudo on-chain data collector + heuristic scoring engine sebagai dasar analisis reputasi dompet.
 - **Wallet Reputation Module**: Analitik reputasi wallet (tx/token/NFT/DeFi/contract) + integrasi proof trigger.
 - **Blockchain Module**: viem public/wallet client + ABI loader untuk Dust Token, TrustVerification, EscrowFactory, dan SBT NFT.
@@ -43,6 +44,7 @@ Backend MVP untuk ekosistem TrustyDust yang menggabungkan reputasi sosial, job e
 - `RPC_URL` → RPC Lisk/Mantle/custom EVM.
 - `TRUST_VERIFICATION_ADDRESS`, `DUST_TOKEN_ADDRESS`, `ESCROW_FACTORY_ADDRESS`, `SBT_CONTRACT_ADDRESS`, `ESCROW_SIGNER_KEY` → alamat kontrak + private key signer yang digunakan oleh `BlockchainService`.
 - `SUPABASE_URL` & `SUPABASE_SERVICE_ROLE_KEY` → kredensial Supabase Realtime (server-side service role agar bisa broadcast tanpa batasan RLS).
+- `GEMINI_API_KEY` → optional; isi untuk mengaktifkan overlay AI (Gemini Pro) pada modul AI Scoring.
 
 ## Prisma Schema
 Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`, `PostMedia`, `PostReaction`, `PostBoost`, `TrustEvent`, `TrustSnapshot`, `ZkProof`, `TierHistory`, `SbtToken`, `Job`, `JobApplication`, `JobEscrow`, `Token`, `UserTokenBalance`, `Notification`, serta tabel chat baru `ChatConversation`, `ChatParticipant`, `ChatMessage`.
@@ -56,7 +58,7 @@ Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`,
 | `/api/v1/social/posts/:id/react` | POST | Like/Comment/Repost (+1/+3/+1 DUST, daily cap 50 DUST).
 | `/api/v1/social/posts/:id/boost` | POST | Burn DUST untuk promote post.
 | `/api/v1/trust/score` | GET | Ambil skor terkini.
-| `/api/v1/zk/prove` | POST | Backend generate proof Noir.
+| `/api/v1/zk/generate` | POST | Backend generate proof Noir dari skor yang diberikan.
 | `/api/v1/zk/verify` | POST | Simpan proof Noir setelah diverifikasi on-chain.
 | `/api/v1/jobs/create` | POST | Buat job (butuh proof ≥ minTrustScore, burn 50 DUST, lock escrow).
 | `/api/v1/jobs/:id/apply` | POST | Worker apply (proof ≥ minTrustScore, burn 20 DUST).
@@ -115,9 +117,10 @@ Frontend harus mengirimkan struktur berikut saat memanggil `POST /jobs/create`:
 ## Wallet Reputation Analyzer
 - `POST /wallet-reputation/analyze` menerima `{ address, chainId, userId? }` lalu:
   1. Mengumpulkan profil pseudo on-chain (tx count, NFT, DeFi, dll) memakai `OnchainCollectorService`.
-  2. Mengubah data mentah menjadi skor heuristik (`txnScore`, `tokenScore`, `nftScore`, `defiScore`, `contractScore`) + `riskScore`.
-  3. Menyimpan hasil ke Prisma `WalletReputation` (beserta `rawData` JSON) dan memicu `ZkService.generateProofForWalletScore` bila skor >= 300 (placeholder untuk integrasi Noir ke depannya).
+  2. Menjalankan hybrid scoring (`AiScoringService`): heuristik → overlay Gemini (jika `GEMINI_API_KEY` tersedia) → hasil akhir 0–1000 + reasoning.
+  3. Menyimpan hasil ke Prisma `WalletReputation` (beserta `rawData` JSON) dan memicu `ZkService.generateScoreProof` bila skor >= 300 sehingga bukti siap diverifikasi.
 - `GET /wallet-reputation/:address?chainId=` mengembalikan snapshot terbaru atau `404` jika belum dianalisa.
+- Respons `analyze` mengandung `score`, `tier`, `riskScore`, `breakdown`, `zkProofId`, serta `reasoning` (jika overlay Gemini aktif).
 - Endpoint dilindungi `JwtAuthGuard`, sehingga FE cukup memakai backend JWT.
 
 ## Chat + Supabase Realtime
@@ -129,22 +132,22 @@ Frontend harus mengirimkan struktur berikut saat memanggil `POST /jobs/create`:
 
 ## Noir + ZK Backend
 Best practice singkat saat memakai Noir + Barretenberg:
-- **Pisahkan circuit & backend** – simpan circuit di `circuits/trust_score`, dan cache ACIR/proving key agar tidak compile di runtime request.
+- **Pisahkan circuit & backend** – simpan circuit di `circuits/wallet_score`, dan cache ACIR/proving key agar tidak compile di runtime request.
 - **Validasi boolean output** – contoh circuit memaksa `is_valid` hanya 0/1 sehingga verifier bisa percaya output publiknya.
-- **Gunakan string untuk Field** – saat membangun witness di backend, kirim `userScore` dan `minScore` sebagai string agar Noir WASM tidak kehilangan presisi.
+- **Gunakan string untuk Field** – saat membangun witness di backend, kirim `score` dan `minScore` sebagai string agar Noir WASM tidak kehilangan presisi.
 - **Kompilasi deterministic** – jalankan `nargo check` sebelum `nargo compile` untuk memastikan constraint konsisten.
 - **Pisahkan proving & verification key** – `ZkCompiler` hanya load sekali saat bootstrap lalu direuse di `ZkProver`.
 
 ### Struktur Circuit & Cara Compile
 ```bash
-cd circuits/trust_score
+cd circuits/wallet_score
 nargo check
 nargo compile
 ```
-Hasil kompilasi (`build/trust_score.acir.gz`, proving/verification key) akan otomatis di-load oleh `ZkCompiler` ketika aplikasi start.
+Hasil kompilasi (`build/wallet_score.acir.gz`, proving/verification key) akan otomatis di-load oleh `ZkCompiler` ketika aplikasi start.
 
 ### ZK Workflow Backend
-1. **Proving** – `POST /zk/prove` body `{ "userId": "...", "minScore": 300 }`. Service mengambil `trustScore` user dari DB, menjalankan Noir WASM + Barretenberg untuk membuat proof + `publicInputs`, lalu menyimpannya ke tabel `ZkProof`.
+1. **Proving** – `POST /zk/generate` body `{ "score": 720, "minScore": 600, "userId": "optional" }`. Service menyiapkan witness, menjalankan Noir WASM + Barretenberg untuk membuat proof + `publicInputs`, lalu menyimpannya ke tabel `ZkProof`.
 2. **Verifikasi on-chain** – `POST /zk/verify` body `{ proof, publicInputs }`. Backend memanggil kontrak `TrustVerification.sol` via viem. ABI ada di `src/abis/trust-verification.json` dan contoh kontrak berada di `contracts/TrustVerification.sol` (siap dikompilasi dengan Foundry `forge build`).
 3. **Testing script** – `npm run test:zk` menjalankan `scripts/test-zk.ts` yang:
    - mengecek hasil kompilasi circuit,

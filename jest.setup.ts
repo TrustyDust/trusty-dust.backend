@@ -36,3 +36,27 @@ jest.mock('@supabase/supabase-js', () => {
     })),
   };
 });
+
+jest.mock('@google/generative-ai', () => {
+  return {
+    GoogleGenerativeAI: jest.fn().mockImplementation(() => ({
+      getGenerativeModel: jest.fn().mockReturnValue({
+        generateContent: jest.fn().mockResolvedValue({
+          response: {
+            text: () =>
+              JSON.stringify({
+                txnScore: 50,
+                tokenScore: 50,
+                nftScore: 50,
+                defiScore: 50,
+                contractScore: 50,
+                riskScore: 10,
+                finalScore: 500,
+                reasoning: 'mock',
+              }),
+          },
+        }),
+      }),
+    })),
+  };
+}, { virtual: true });

@@ -35,6 +35,7 @@ export class OnchainCollectorService {
       suspiciousTokensCount: this.hashToNumber(normalizedAddress, chainId, 'suspicious') % 6,
     };
 
+    // TODO: Replace pseudo metrics with real on-chain data via indexer/RPC integrations.
     return profile;
   }
 

@@ -1,48 +1,51 @@
-import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { BlockchainService } from '@/blockchain/blockchain.service';
 import { ZkProver } from '@/zk/zk.prover';
-import { ZkProofResult } from '@/zk/zk.types';
+import { Prisma } from '@prisma/client';
+import {
+  GenerateScoreProofPayload,
+  VerifyProofPayload,
+  ZkProofResult,
+} from '@/zk/zk.types';
 
 @Injectable()
 export class ZkService {
+  private readonly logger = new Logger(ZkService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly blockchain: BlockchainService,
     private readonly zkProver: ZkProver,
   ) {}
-  private readonly logger = new Logger(ZkService.name);
 
-  async generateProof(userId: string, minScore: number): Promise<ZkProofResult> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    this.logger.log(`Generating proof for user ${userId} with minScore ${minScore}`);
-
+  async generateScoreProof(
+    payload: GenerateScoreProofPayload,
+  ): Promise<ZkProofResult & { proofId: string }> {
+    this.logger.log(
+      `Generating wallet score proof for user ${payload.userId ?? 'anonymous'} with score ${payload.score}`,
+    );
     const witnessInput = {
-      userScore: user.trustScore.toString(),
-      minScore: minScore.toString(),
+      score: Math.round(payload.score).toString(),
+      minScore: Math.round(payload.minScore).toString(),
     };
-
     const proofResult = await this.zkProver.generateProof(witnessInput);
-
-    await this.prisma.zkProof.create({
-      data: {
-        userId,
-        minScore,
-        proof: proofResult.proof,
-        publicInputs: proofResult.publicInputs,
-      },
-    });
-
-    this.logger.log(`Proof generated for user ${userId}`);
-    return proofResult;
+    const data: Prisma.ZkProofUncheckedCreateInput = {
+      userId: payload.userId ?? undefined,
+      minScore: payload.minScore,
+      proof: proofResult.proof,
+      publicInputs: proofResult.publicInputs,
+    };
+    const record = await this.prisma.zkProof.create({ data });
+    return { ...proofResult, proofId: record.id };
   }
 
-  async verifyProof(proof: string, publicInputs: string[]) {
+  async verifyOnChain(dto: VerifyProofPayload) {
     this.logger.log('Verifying proof via blockchain');
-    const valid = await this.blockchain.verifyTrustProof({ proof, publicInputs });
+    const valid = await this.blockchain.verifyTrustProof({
+      proof: dto.proof,
+      publicInputs: dto.publicInputs,
+    });
     if (!valid) {
       throw new BadRequestException('Invalid ZK proof');
     }
@@ -72,19 +75,5 @@ export class ZkService {
         metadata: 'proof_requested',
       },
     });
-  }
-
-  async generateProofForWalletScore(args: { userId?: string; score: number; minScore: number }) {
-    this.logger.log(
-      `Wallet score proof trigger for user ${args.userId ?? 'anonymous'} with score ${args.score}`,
-    );
-    if (!args.userId) {
-      // No linked user, skip actual proving. In the future we can support anon proofs.
-      return { proofId: null };
-    }
-
-    // TODO: integrate Noir/NoirJS proof generation for wallet-based score thresholds.
-    await this.queueProofRequest(args.userId, args.minScore);
-    return { proofId: null };
   }
 }

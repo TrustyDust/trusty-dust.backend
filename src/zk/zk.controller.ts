@@ -1,7 +1,7 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ZkService } from '@/zk/zk.service';
-import { GenerateProofDto } from '@/zk/dto/generate-proof.dto';
+import { GenerateScoreProofDto } from '@/zk/dto/generate-score-proof.dto';
 import { VerifyCalldataDto } from '@/zk/dto/verify-calldata.dto';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 
@@ -11,12 +11,12 @@ import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 export class ZkController {
   constructor(private readonly zkService: ZkService) {}
 
-  @Post('prove')
+  @Post('generate')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Generate Noir trust score proof from backend' })
+  @ApiOperation({ summary: 'Generate Noir score proof from backend inputs' })
   @ApiCreatedResponse({ description: 'Proof and public inputs ready for on-chain verification' })
-  prove(@Body() dto: GenerateProofDto) {
-    return this.zkService.generateProof(dto.userId, dto.minScore);
+  generate(@Body() dto: GenerateScoreProofDto) {
+    return this.zkService.generateScoreProof(dto);
   }
 
   @Post('verify')
@@ -24,6 +24,6 @@ export class ZkController {
   @ApiOperation({ summary: 'Verify Noir proof against TrustVerification contract' })
   @ApiOkResponse({ description: 'Boolean verification result' })
   verify(@Body() dto: VerifyCalldataDto) {
-    return this.zkService.verifyProof(dto.proof, dto.publicInputs);
+    return this.zkService.verifyOnChain(dto);
   }
 }

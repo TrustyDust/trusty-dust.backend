@@ -1,5 +1,5 @@
 export interface ZkWitnessInput {
-  userScore: string;
+  score: string;
   minScore: string;
 }
 
@@ -8,9 +8,10 @@ export interface ZkProofResult {
   publicInputs: string[];
 }
 
-export interface GenerateProofPayload {
-  userId: string;
+export interface GenerateScoreProofPayload {
+  score: number;
   minScore: number;
+  userId?: string;
 }
 
 export interface VerifyProofPayload {

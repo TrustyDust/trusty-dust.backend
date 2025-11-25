@@ -42,19 +42,10 @@ describe('ZkModule (e2e)', () => {
     await prisma.zkProof.deleteMany();
   });
 
-  it('POST /zk/prove stores proof entry', async () => {
-    await prisma.user.create({
-      data: {
-        id: 'user-1',
-        walletAddress: '0xzk00001',
-        username: 'zk-user',
-        trustScore: 800,
-        tier: 'Nova',
-      },
-    });
+  it('POST /zk/generate stores proof entry', async () => {
     const response = await request(app.getHttpServer())
-      .post('/api/v1/zk/prove')
-      .send({ userId: 'user-1', minScore: 500 })
+      .post('/api/v1/zk/generate')
+      .send({ score: 720, minScore: 600, userId: 'user-1' })
       .expect(201);
 
     expect(response.body.proof).toBe('0xproof');

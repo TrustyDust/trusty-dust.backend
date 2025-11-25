@@ -65,9 +65,9 @@ This document explains how the frontend (FE) should call the backend, the execut
 ## 7. Wallet Reputation Analyzer
 - Endpoint `POST /wallet-reputation/analyze` menerima `{ address, chainId, userId? }`. Setelah memanggil endpoint ini:
   1. Backend menormalisasi alamat (`toLowerCase`) dan menjalankan `OnchainCollectorService` yang saat ini masih menghasilkan data pseudo-deterministik (placeholder sebelum terhubung ke RPC/indexer nyata).
-  2. Data mentah diteruskan ke `AiScoringService` untuk menghasilkan `txnScore`, `tokenScore`, `nftScore`, `defiScore`, `contractScore`, `riskScore`, dan total score 0–1000.
-  3. Snapshot disimpan ke tabel `WalletReputation` (beserta `rawData`). Jika skor >= 300 maka backend memanggil `ZkService.generateProofForWalletScore` (stub) sehingga nanti mudah diganti Noir proof.
-  4. Respons mengembalikan `{ address, chainId, score, tier, riskScore, breakdown }`.
+  2. Data mentah diteruskan ke `AiScoringService` yang memakai heuristik deterministik + overlay Gemini (jika `GEMINI_API_KEY` terpasang) untuk menghasilkan `txnScore`, `tokenScore`, `nftScore`, `defiScore`, `contractScore`, `riskScore`, reasoning, dan total score 0–1000.
+  3. Snapshot disimpan ke tabel `WalletReputation` (beserta `rawData`). Jika skor >= 300 maka backend memanggil `ZkService.generateScoreProof` sehingga bukti Noir tersedia dan ID-nya disematkan.
+  4. Respons mengembalikan `{ address, chainId, score, tier, riskScore, breakdown, zkProofId, reasoning }`.
 - `GET /wallet-reputation/:address?chainId=` selalu mengembalikan snapshot terakhir atau `404` jika belum analiz.
 - Semua endpoint berada di balik `JwtAuthGuard` → FE cukup kirim backend JWT.
 

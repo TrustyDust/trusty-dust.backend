@@ -79,3 +79,9 @@
 - Mengaktifkan alias `@/` di `tsconfig.json` (plus Jest config & e2e config) dan memperbarui seluruh import internal agar tidak lagi memakai relatif `./`/`../`.
 - Menambahkan `tsconfig-paths/register` pada script (start/dev/debug/prod, seed, test:zk) sehingga runtime/ts-node memahami alias baru.
 - Memastikan skrip/tooling (jest, ts-node, e2e) memakai `moduleNameMapper`/registerer sesuai agar build & test tetap berjalan.
+
+## 17. Hybrid Wallet Reputation + ZK Revamp
+- Mengupgrade `AiScoringService` menjadi pipeline hybrid: heuristik deterministik + overlay Gemini (via `GeminiClientService` dan util normalizer). Env `GEMINI_API_KEY` ditambahkan untuk mengaktifkan overlay.
+- Menyusun ulang `ZkService`/controller agar menyediakan endpoint `/zk/generate` dengan input `{ score, minScore, userId? }`, memanfaatkan circuit baru `circuits/wallet_score` dan menyimpan hasil ke Prisma `ZkProof` (userId opsional).
+- Wallet Reputation kini mengembalikan `zkProofId`, reasoning, dan otomatis memanggil `generateScoreProof` saat skor >= 300. E2E/unit test diperbarui.
+- Dokumentasi (README + guide) diperbarui untuk menjelaskan alur hybrid AI, env baru, path circuit baru, serta endpoint `/zk/generate`.

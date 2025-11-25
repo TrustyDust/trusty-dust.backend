@@ -8,7 +8,7 @@ import { WalletOnchainProfile } from '@/onchain-collector/onchain-collector.type
 import { WalletScoreBreakdown } from '@/ai-scoring/ai-scoring.types';
 
 export interface WalletScoreProofGateway {
-  generateProofForWalletScore(args: {
+  generateScoreProof(args: {
     userId?: string;
     score: number;
     minScore: number;
@@ -32,13 +32,12 @@ export class WalletReputationService {
     const chainId = dto.chainId;
 
     const profile = await this.collector.analyzeWallet(address, chainId);
-    const breakdown = this.scoring.scoreWallet(profile);
+    const breakdown = await this.scoring.scoreWallet(profile);
 
     let record = await this.upsertReputation(dto.userId, profile, breakdown);
 
     if (breakdown.score >= this.proofThreshold) {
-      // TODO: integrate real wallet-score ZK proving when available.
-      const zkResult = await this.zkService.generateProofForWalletScore({
+      const zkResult = await this.zkService.generateScoreProof({
         userId: dto.userId,
         score: breakdown.score,
         minScore: this.proofThreshold,
@@ -51,7 +50,7 @@ export class WalletReputationService {
       }
     }
 
-    return this.mapResponse(record);
+    return this.mapResponse(record, breakdown.reasoning);
   }
 
   async getLatest(address: string, chainId: number) {
@@ -100,18 +99,22 @@ export class WalletReputationService {
     return this.prisma.walletReputation.create({ data });
   }
 
-  private mapResponse(record: {
-    address: string;
-    chainId: number;
-    score: number;
-    tier: string;
-    riskScore: number;
-    txnScore: number;
-    tokenScore: number;
-    nftScore: number;
-    defiScore: number;
-    contractScore: number;
-  }) {
+  private mapResponse(
+    record: {
+      address: string;
+      chainId: number;
+      score: number;
+      tier: string;
+      riskScore: number;
+      txnScore: number;
+      tokenScore: number;
+      nftScore: number;
+      defiScore: number;
+      contractScore: number;
+      zkProofId?: string | null;
+    },
+    reasoning?: string,
+  ) {
     return {
       address: record.address,
       chainId: record.chainId,
@@ -125,6 +128,8 @@ export class WalletReputationService {
         defiScore: record.defiScore,
         contractScore: record.contractScore,
       },
+      zkProofId: record.zkProofId ?? null,
+      reasoning,
     };
   }
 

@@ -11,8 +11,9 @@ export interface WalletScoreBreakdown {
   nftScore: number;
   defiScore: number;
   contractScore: number;
+  reasoning?: string;
 }
 
 export interface WalletScoringEngine {
-  scoreWallet(profile: WalletOnchainProfile): WalletScoreBreakdown;
+  scoreWallet(profile: WalletOnchainProfile): Promise<WalletScoreBreakdown>;
 }

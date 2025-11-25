@@ -39,8 +39,8 @@ describe('JobsModule (e2e)', () => {
       .overrideProvider(ZkService)
       .useValue({
         ...zkMock,
-        generateProof: jest.fn(),
-        verifyProof: jest.fn(),
+        generateScoreProof: jest.fn(),
+        verifyOnChain: jest.fn(),
       })
       .overrideProvider(NotificationService)
       .useValue(notificationMock)

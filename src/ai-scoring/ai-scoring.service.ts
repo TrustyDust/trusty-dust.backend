@@ -1,78 +1,147 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { WalletOnchainProfile } from '@/onchain-collector/onchain-collector.types';
-import { ReputationTier, WalletScoreBreakdown } from '@/ai-scoring/ai-scoring.types';
+import { GeminiClientService } from '@/ai-scoring/gemini-client.service';
+import { WalletScoreBreakdown, ReputationTier } from '@/ai-scoring/ai-scoring.types';
+import { clamp100, clamp1000, weight } from '@/ai-scoring/ai-normalizer.util';
 
-/**
- * AI/ML placeholder – we currently rely on deterministic heuristics so the FE can be built.
- * TODO: replace heuristics with an LLM/ML scoring pipeline once available.
- */
+interface HeuristicScores extends WalletScoreBreakdown {}
+
+interface AiOverlayResponse {
+  txnScore?: number;
+  tokenScore?: number;
+  nftScore?: number;
+  defiScore?: number;
+  contractScore?: number;
+  riskScore?: number;
+  finalScore?: number;
+  reasoning?: string;
+}
+
 @Injectable()
 export class AiScoringService {
   private readonly logger = new Logger(AiScoringService.name);
 
-  scoreWallet(profile: WalletOnchainProfile): WalletScoreBreakdown {
-    this.logger.log(`Scoring wallet ${profile.address} on chain ${profile.chainId}`);
-    const txnScore = this.computeTxnScore(profile.txCount);
-    const tokenScore = this.computeTokenScore(profile.tokenHoldingsScoreInput ?? 0);
-    const nftScore = this.computeNftScore(profile.nftCount ?? 0, profile.blueChipNftCount ?? 0);
-    const defiScore = this.computeDefiScore(
-      profile.dexInteractionCount ?? 0,
-      profile.lendingProtocolsCount ?? 0,
-    );
-    const contractScore = this.computeContractScore(profile.uniqueContractCount ?? 0);
-    const riskScore = this.computeRiskScore(
-      profile.flaggedInteractionsCount ?? 0,
-      profile.suspiciousTokensCount ?? 0,
-    );
+  constructor(private readonly geminiClient: GeminiClientService) {}
 
-    const aggregateWeighted =
+  async scoreWallet(profile: WalletOnchainProfile): Promise<WalletScoreBreakdown> {
+    const heuristics = this.buildHeuristicScores(profile);
+    const aiOverlay = await this.tryAiOverlay(profile, heuristics);
+    const merged = this.mergeScores(heuristics, aiOverlay);
+    return { ...merged, tier: this.mapTier(merged.score) };
+  }
+
+  private buildHeuristicScores(profile: WalletOnchainProfile): HeuristicScores {
+    const txnScore = clamp100(Math.log10((profile.txCount ?? 0) + 1) * 25);
+    const tokenScore = clamp100(profile.tokenHoldingsScoreInput ?? 0);
+    const nftScore = clamp100(
+      (profile.nftCount ?? 0) * 3 + (profile.blueChipNftCount ?? 0) * 10,
+    );
+    const defiScore = clamp100(
+      (profile.dexInteractionCount ?? 0) * 0.8 + (profile.lendingProtocolsCount ?? 0) * 5,
+    );
+    const contractScore = clamp100(
+      (profile.uniqueContractCount ?? 0) * 0.75 + (profile.contractInteractionCount ?? 0) * 0.1,
+    );
+    const riskScore = clamp100(
+      (profile.flaggedInteractionsCount ?? 0) * 10 + (profile.suspiciousTokensCount ?? 0) * 8,
+    );
+    const aggregate =
       txnScore * 0.25 +
       tokenScore * 0.2 +
       nftScore * 0.15 +
       defiScore * 0.2 +
       contractScore * 0.2;
-    const score = Math.max(0, Math.min(1000, Math.round((aggregateWeighted / 100) * 1000)));
-    const tier = this.mapTier(score);
+    const score = clamp1000(Math.round(aggregate * 10));
 
     return {
       score,
-      tier,
+      tier: this.mapTier(score),
       riskScore,
       txnScore,
       tokenScore,
       nftScore,
       defiScore,
       contractScore,
+      reasoning: undefined,
     };
   }
 
-  private computeTxnScore(txCount: number) {
-    if (txCount <= 0) return 0;
-    const logScore = Math.log10(txCount + 1) * 25;
-    return Math.min(100, Math.round(logScore));
+  private async tryAiOverlay(profile: WalletOnchainProfile, heuristics: HeuristicScores) {
+    const prompt = this.buildPrompt(profile, heuristics);
+    const result = await this.geminiClient.analyze(prompt);
+    return result ?? null;
   }
 
-  private computeTokenScore(tokenHoldingsScoreInput: number) {
-    return Math.min(100, Math.round(tokenHoldingsScoreInput));
+  private buildPrompt(profile: WalletOnchainProfile, heuristics: HeuristicScores) {
+    const payload = {
+      profile: {
+        address: profile.address,
+        chainId: profile.chainId,
+        txCount: profile.txCount,
+        nativeBalanceUsd: profile.nativeBalanceUsd,
+        stableBalanceUsd: profile.stableBalanceUsd,
+        tokenHoldingsScoreInput: profile.tokenHoldingsScoreInput,
+        nftCount: profile.nftCount,
+        blueChipNftCount: profile.blueChipNftCount,
+        dexInteractionCount: profile.dexInteractionCount,
+        lendingProtocolsCount: profile.lendingProtocolsCount,
+        contractInteractionCount: profile.contractInteractionCount,
+        uniqueContractCount: profile.uniqueContractCount,
+        flaggedInteractionsCount: profile.flaggedInteractionsCount,
+        suspiciousTokensCount: profile.suspiciousTokensCount,
+      },
+      heuristics,
+    };
+
+    return `
+You are an AI that scores blockchain wallets for trustworthiness.
+Consider the telemetry and heuristic baseline below. Return STRICT JSON with this shape:
+{
+  "txnScore": number,
+  "tokenScore": number,
+  "nftScore": number,
+  "defiScore": number,
+  "contractScore": number,
+  "riskScore": number,
+  "finalScore": number,
+  "reasoning": string
+}
+
+Input:
+${JSON.stringify(payload)}
+`;
   }
 
-  private computeNftScore(nftCount: number, blueChipNftCount: number) {
-    const base = nftCount * 3;
-    const bonus = blueChipNftCount * 10;
-    return Math.min(100, Math.round(base + bonus));
-  }
+  private mergeScores(
+    heuristics: HeuristicScores,
+    aiOverlay: AiOverlayResponse | null,
+  ): WalletScoreBreakdown {
+    if (!aiOverlay) {
+      return heuristics;
+    }
 
-  private computeDefiScore(dexInteractions: number, lendingProtocolsCount: number) {
-    return Math.min(100, Math.round(dexInteractions * 0.8 + lendingProtocolsCount * 5));
-  }
+    const aiTxn = clamp100(aiOverlay.txnScore);
+    const aiToken = clamp100(aiOverlay.tokenScore);
+    const aiNft = clamp100(aiOverlay.nftScore);
+    const aiDefi = clamp100(aiOverlay.defiScore);
+    const aiContract = clamp100(aiOverlay.contractScore);
+    const aiRisk = clamp100(aiOverlay.riskScore);
+    const aiFinal = clamp1000(aiOverlay.finalScore);
 
-  private computeContractScore(uniqueContractCount: number) {
-    return Math.min(100, Math.round(uniqueContractCount * 0.8));
-  }
+    const mergedRisk = Math.round((heuristics.riskScore + aiRisk) / 2);
+    const finalScore = weight(heuristics.score, aiFinal, 0.3);
 
-  private computeRiskScore(flagged: number, suspicious: number) {
-    const raw = flagged * 10 + suspicious * 8;
-    return Math.min(100, Math.round(raw));
+    return {
+      score: finalScore,
+      tier: heuristics.tier,
+      txnScore: weight(heuristics.txnScore, aiTxn, 0.3),
+      tokenScore: weight(heuristics.tokenScore, aiToken, 0.3),
+      nftScore: weight(heuristics.nftScore, aiNft, 0.3),
+      defiScore: weight(heuristics.defiScore, aiDefi, 0.3),
+      contractScore: weight(heuristics.contractScore, aiContract, 0.3),
+      riskScore: mergedRisk,
+      reasoning: aiOverlay.reasoning ?? heuristics.reasoning,
+    };
   }
 
   private mapTier(score: number): ReputationTier {

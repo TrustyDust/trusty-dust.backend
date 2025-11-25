@@ -12,7 +12,7 @@ describe('WalletReputationModule (e2e)', () => {
   let jwtService: JwtService;
 
   const zkMock = {
-    generateProofForWalletScore: jest.fn().mockResolvedValue({ proofId: null }),
+    generateScoreProof: jest.fn().mockResolvedValue({ proofId: null }),
   } as Partial<ZkService>;
 
   beforeAll(async () => {
@@ -23,8 +23,8 @@ describe('WalletReputationModule (e2e)', () => {
       .overrideProvider(ZkService)
       .useValue({
         ...zkMock,
-        generateProof: jest.fn(),
-        verifyProof: jest.fn(),
+        generateScoreProof: zkMock.generateScoreProof,
+        verifyOnChain: jest.fn(),
         assertProof: jest.fn(),
         queueProofRequest: jest.fn(),
       })
@@ -66,6 +66,7 @@ describe('WalletReputationModule (e2e)', () => {
 
     expect(analyzeResponse.body.address).toBe('0xdeadbeef00000000000000000000000000000000');
     expect(analyzeResponse.body.breakdown).toHaveProperty('txnScore');
+    expect(analyzeResponse.body).toHaveProperty('zkProofId');
 
     const latest = await request(app.getHttpServer())
       .get(`/api/v1/wallet-reputation/${user.walletAddress}`)

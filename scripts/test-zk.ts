@@ -8,12 +8,12 @@ import { ZkProver } from '@/zk/zk.prover';
 async function main() {
   const compiler = new ZkCompiler();
   if (!compiler.hasBuildArtifacts()) {
-    throw new Error('Compile the Noir circuit first: cd circuits/trust_score && nargo check && nargo compile');
+    throw new Error('Compile the Noir circuit first: cd circuits/wallet_score && nargo check && nargo compile');
   }
   await compiler.loadArtifacts();
 
   const prover = new ZkProver(compiler);
-  const witness = { userScore: '500', minScore: '300' };
+  const witness = { score: '500', minScore: '300' };
   const proofResult = await prover.generateProof(witness);
   console.log('Generated proof:', proofResult);
 
