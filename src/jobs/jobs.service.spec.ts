@@ -14,6 +14,7 @@ describe('JobsService', () => {
     jobApplication: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
     },
@@ -82,6 +83,47 @@ describe('JobsService', () => {
       expect(escrow.lock).toHaveBeenCalledWith('job', 5, '0xabc', '0xabc', 20);
       expect(notification.notify).toHaveBeenCalledWith('user', 'Job created and escrow locked');
       expect(job).toEqual({ id: 'job', chainRef: 5 });
+    });
+  });
+
+  describe('listMyApplications', () => {
+    it('returns applications with job info and enforces limit', async () => {
+      (prisma.jobApplication.findMany as jest.Mock).mockResolvedValue(['app']);
+
+      const result = await service.listMyApplications('worker', 10);
+
+      expect(prisma.jobApplication.findMany).toHaveBeenCalledWith({
+        where: { workerId: 'worker' },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        include: {
+          job: {
+            select: {
+              id: true,
+              title: true,
+              companyName: true,
+              jobType: true,
+              reward: true,
+              status: true,
+            },
+          },
+        },
+      });
+      expect(result).toEqual(['app']);
+    });
+
+    it('clamps limit to max 20 and default 5 when undefined', async () => {
+      (prisma.jobApplication.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.listMyApplications('worker', 50);
+      expect(prisma.jobApplication.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({ take: 20 }),
+      );
+
+      await service.listMyApplications('worker');
+      expect(prisma.jobApplication.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({ take: 5 }),
+      );
     });
   });
 

@@ -100,6 +100,27 @@ export class JobsService {
     });
   }
 
+  async listMyApplications(userId: string, limit = 5) {
+    const take = Math.min(Math.max(limit, 1), 20);
+    return this.prisma.jobApplication.findMany({
+      where: { workerId: userId },
+      orderBy: { createdAt: 'desc' },
+      take,
+      include: {
+        job: {
+          select: {
+            id: true,
+            title: true,
+            companyName: true,
+            jobType: true,
+            reward: true,
+            status: true,
+          },
+        },
+      },
+    });
+  }
+
   async listApplicants(jobId: string, requesterId: string) {
     const job = await this.prisma.job.findUnique({
       where: { id: jobId },

@@ -162,6 +162,59 @@ describe('JobsModule (e2e)', () => {
     expect(stored?.extraMetadata).toEqual(payload.extraMetadata);
   });
 
+  it('GET /jobs/applications/me returns worker applications', async () => {
+    const poster = await prisma.user.create({
+      data: {
+        walletAddress: '0xposterMyApps',
+        username: 'poster-my-apps',
+        tier: 'Dust',
+        trustScore: 600,
+      },
+    });
+    const worker = await prisma.user.create({
+      data: {
+        walletAddress: '0xworkerMyApps',
+        username: 'worker-my-apps',
+        tier: 'Dust',
+        trustScore: 500,
+      },
+    });
+    const job = await prisma.job.create({
+      data: {
+        creatorId: poster.id,
+        title: 'UI Revamp',
+        description: 'desc',
+        companyName: 'Studio',
+        location: 'Remote',
+        jobType: 'Contract',
+        requirements: [],
+        minTrustScore: 200,
+        reward: 100,
+        status: 'OPEN',
+      },
+    });
+    await prisma.jobApplication.create({
+      data: {
+        jobId: job.id,
+        workerId: worker.id,
+        status: 'APPLIED',
+      },
+    });
+    const token = await jwtService.signAsync({
+      userId: worker.id,
+      walletAddress: worker.walletAddress,
+    });
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/jobs/applications/me?limit=3')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(response.body)).toBe(true);
+    expect(response.body[0].job.title).toBe('UI Revamp');
+    expect(response.body[0].status).toBe('APPLIED');
+  });
+
   it('POST /jobs/application/:id/submit updates status', async () => {
     const worker = await prisma.user.create({
       data: {

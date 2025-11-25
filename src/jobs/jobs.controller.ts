@@ -10,6 +10,7 @@ import { ApplyJobDto } from './dto/apply-job.dto';
 import { SubmitWorkDto } from './dto/submit-work.dto';
 import { ConfirmWorkDto } from './dto/confirm-work.dto';
 import { SearchJobsQueryDto } from './dto/search-jobs.dto';
+import { MyApplicationsQueryDto } from './dto/my-applications-query.dto';
 
 @ApiTags('Jobs')
 @ApiBearerAuth('backend-jwt')
@@ -24,6 +25,17 @@ export class JobsController {
   @ApiOkResponse({ description: 'Array of job postings owned by the requester' })
   listMyJobs(@CurrentUser() user: RequestUser) {
     return this.jobsService.listMyJobs(user.id);
+  }
+
+  @Get('applications/me')
+  @Throttle({ jobsMyApplications: { limit: 60, ttl: 60 } })
+  @ApiOperation({ summary: 'List applications submitted by the current user' })
+  @ApiOkResponse({ description: 'Array of applications with related job meta' })
+  listMyApplications(
+    @CurrentUser() user: RequestUser,
+    @Query() query: MyApplicationsQueryDto,
+  ) {
+    return this.jobsService.listMyApplications(user.id, query.limit);
   }
 
   @Get(':id/applicants')

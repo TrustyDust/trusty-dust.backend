@@ -114,3 +114,8 @@
 - Membuat `SupabaseService` (module baru) yang menyiapkan client `@supabase/supabase-js` dan menyediakan method `testConnection(table?)` untuk mem-ping PostgREST (`select * limit 1`) sekaligus mengukur latency.
 - `GET /health/supabase` (dalam `AppController`) mengeksekusi service tersebut; bisa menerima query `table` atau fallback ke env `SUPABASE_HEALTH_TABLE` (default `ChatMessage`).
 - `.env.example` & README ditambah variabel `SUPABASE_HEALTH_TABLE` agar tim bisa memilih tabel aman sebagai target ping.
+
+## 22. Jobs – My Applications feed
+- Menambahkan DTO `MyApplicationsQueryDto`, endpoint `GET /jobs/applications/me` (+ throttle 60 req/menit) untuk mengambil aplikasi milik worker saat ini, lengkap dengan meta job (title, company, reward, status).
+- `JobsService.listMyApplications` baru yang membatasi hasil (default 5, max 20) dan menyertakan informasi job terkait; unit test diperluas untuk memverifikasi behavior limit.
+- E2E test `test/jobs.e2e-spec.ts` sekarang mencakup skenario pemanggilan endpoint baru guna memastikan respons sudah menampilkan aplikasi worker.
