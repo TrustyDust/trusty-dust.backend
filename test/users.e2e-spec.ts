@@ -74,4 +74,55 @@ describe('UsersModule (e2e)', () => {
     expect(response.body.username).toBe('newname');
     expect(response.body.avatar).toBe('https://avatar.example/test.png');
   });
+
+  it('GET /users/search/people returns paginated list', async () => {
+    const { user, token } = await createUserAndToken();
+    await prisma.user.create({
+      data: {
+        walletAddress: '0xuser000000000000000000000000000000000002',
+        username: 'designer',
+        jobTitle: 'UI/UX Designer',
+        jobType: 'Contract',
+        tier: 'Spark',
+        trustScore: 400,
+      },
+    });
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/users/search/people')
+      .query({ keyword: 'Designer' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].username).toBe('designer');
+  });
+
+  it('POST /users/:id/follow toggles follow state', async () => {
+    const { user, token } = await createUserAndToken();
+    const target = await prisma.user.create({
+      data: {
+        walletAddress: '0xuserfollow',
+        username: 'followme',
+        tier: 'Dust',
+        trustScore: 200,
+      },
+    });
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/users/${target.id}/follow`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(201);
+
+    const followEntry = await prisma.follow.findFirst({ where: { followerId: user.id, followingId: target.id } });
+    expect(followEntry).toBeTruthy();
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/users/${target.id}/follow`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const deleted = await prisma.follow.findFirst({ where: { followerId: user.id, followingId: target.id } });
+    expect(deleted).toBeNull();
+  });
 });

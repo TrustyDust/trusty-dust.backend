@@ -16,6 +16,7 @@ Backend MVP untuk ekosistem TrustyDust yang menggabungkan reputasi sosial, job e
 - **Hybrid Wallet Reputation**: Kolektor pseudo on-chain + heuristic scoring + overlay Gemini (opsional) untuk memperoleh skor + reasoning sebelum disimpan (dengan limit 10 analisa/5 menit per IP).
 - **Onchain Collector + AI Scoring**: Pseudo on-chain data collector + heuristic scoring engine sebagai dasar analisis reputasi dompet.
 - **Wallet Reputation Module**: Analitik reputasi wallet (tx/token/NFT/DeFi/contract) + integrasi proof trigger.
+- **People & Jobs Discovery**: Search people/jobs dengan infinite scroll, follow/unfollow, suggested people, dan hot job list.
 - **Rate Limiting**: Endpoint login (`/auth/login`) dibatasi `@nestjs/throttler` (5 request/menit per IP) untuk mencegah brute force.
 - **Blockchain Module**: viem public/wallet client + ABI loader untuk Dust Token, TrustVerification, EscrowFactory, dan SBT NFT.
 
@@ -48,13 +49,16 @@ Backend MVP untuk ekosistem TrustyDust yang menggabungkan reputasi sosial, job e
 - `GEMINI_API_KEY` → optional; isi untuk mengaktifkan overlay AI (Gemini Pro) pada modul AI Scoring.
 
 ## Prisma Schema
-Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`, `PostMedia`, `PostReaction`, `PostBoost`, `TrustEvent`, `TrustSnapshot`, `ZkProof`, `TierHistory`, `SbtToken`, `Job`, `JobApplication`, `JobEscrow`, `Token`, `UserTokenBalance`, `Notification`, serta tabel chat baru `ChatConversation`, `ChatParticipant`, `ChatMessage`.
+Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`, `PostMedia`, `PostReaction`, `PostBoost`, `TrustEvent`, `TrustSnapshot`, `ZkProof`, `TierHistory`, `SbtToken`, `Job`, `JobApplication`, `JobEscrow`, `Token`, `UserTokenBalance`, `Notification`, tabel chat (`ChatConversation`, `ChatParticipant`, `ChatMessage`), serta model `Follow` untuk relasi follower/following.
 
 ## Endpoint Ringkas
 | Endpoint | Method | Keterangan |
 | --- | --- | --- |
 | `/api/v1/auth/login` | POST | FE kirim `Authorization: Bearer <privy_jwt>`, backend verifikasi Privy lalu balas backend JWT.
 | `/api/v1/users/me` | GET/PATCH | Lihat & update profil (JWT required).
+| `/api/v1/users/search/people` | GET | Cari user berdasarkan keyword/job title/job type (limit 60 req/menit, cursor pagination).
+| `/api/v1/users/suggested` | GET | Ambil 3 saran user dengan tier/job type serupa (30 req/menit).
+| `/api/v1/users/:id/follow` | POST/DELETE | Follow/unfollow user lain (120 req/menit).
 | `/api/v1/social/posts` | POST | Buat post, otomatis +3 DUST (rate limit 20/min/IP).
 | `/api/v1/social/posts/:id/react` | POST | Like/Comment/Repost (+1/+3/+1 DUST, daily cap 50 DUST) — rate limit 60/min/IP.
 | `/api/v1/social/posts/:id/boost` | POST | Burn DUST untuk promote post (rate limit 10/min/IP).
@@ -63,9 +67,11 @@ Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`,
 | `/api/v1/zk/verify` | POST | Simpan proof Noir setelah diverifikasi on-chain.
 | `/api/v1/jobs/create` | POST | Buat job (butuh proof ≥ minTrustScore, burn 50 DUST, lock escrow) – dibatasi 10 req/5 menit/IP.
 | `/api/v1/jobs/:id/apply` | POST | Worker apply (proof ≥ minTrustScore, burn 20 DUST) – 30 req/5 menit/IP.
-| `/api/v1/jobs/:id/applicants` | GET | Daftar pelamar untuk job milik poster (limit 60 req/menit; hanya bisa diakses owner job).
-| `/api/v1/jobs/application/:id/submit` | POST | Worker submit deliverable – 30 req/5 menit/IP.
 | `/api/v1/jobs/me` | GET | Daftar job yang diposting oleh user saat ini (limit 60 req/menit).
+| `/api/v1/jobs/:id/applicants` | GET | Daftar pelamar untuk job milik poster (limit 60 req/menit; hanya bisa diakses owner job).
+| `/api/v1/jobs/search` | GET | Cari job OPEN berdasarkan keyword/jobType/jobTitle (limit 60 req/menit, cursor pagination).
+| `/api/v1/jobs/hot` | GET | Ambil 4 job OPEN dengan reward & aplikasi terbesar (30 req/menit).
+| `/api/v1/jobs/application/:id/submit` | POST | Worker submit deliverable – 30 req/5 menit/IP.
 | `/api/v1/jobs/application/:id/confirm` | POST | Poster konfirmasi, escrow release USDC, TrustEvent +100 – 30 req/5 menit/IP.
 | `/api/v1/tier/me` | GET | Lihat tier + history (limit 120 req/menit).
 | `/api/v1/notifications` | GET | Ambil notifikasi terbaru (limit 60 req/menit/IP); socket gateway tersedia di `ws://host:PORT` (query `userId` untuk join room pribadi).

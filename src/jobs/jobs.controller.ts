@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JobsService } from './jobs.service';
@@ -9,6 +9,7 @@ import { CreateJobDto } from './dto/create-job.dto';
 import { ApplyJobDto } from './dto/apply-job.dto';
 import { SubmitWorkDto } from './dto/submit-work.dto';
 import { ConfirmWorkDto } from './dto/confirm-work.dto';
+import { SearchJobsQueryDto } from './dto/search-jobs.dto';
 
 @ApiTags('Jobs')
 @ApiBearerAuth('backend-jwt')
@@ -31,6 +32,20 @@ export class JobsController {
   @ApiOkResponse({ description: 'Array of job applications for the job' })
   listApplicants(@CurrentUser() user: RequestUser, @Param('id') jobId: string) {
     return this.jobsService.listApplicants(jobId, user.id);
+  }
+
+  @Get('search')
+  @Throttle({ jobsSearch: { limit: 60, ttl: 60 } })
+  @ApiOperation({ summary: 'Search open jobs' })
+  searchJobs(@Query() query: SearchJobsQueryDto) {
+    return this.jobsService.searchJobs(query);
+  }
+
+  @Get('hot')
+  @Throttle({ jobsHot: { limit: 30, ttl: 60 } })
+  @ApiOperation({ summary: 'Top open jobs ordered by reward/applications' })
+  hotJobs() {
+    return this.jobsService.hotJobs(4);
   }
 
   @Post('create')

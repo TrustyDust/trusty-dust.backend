@@ -290,4 +290,73 @@ describe('JobsModule (e2e)', () => {
     expect(response.body).toHaveLength(2);
     expect(response.body[0].creatorId).toBe(poster.id);
   });
+
+  it('GET /jobs/search returns filtered results', async () => {
+    const poster = await prisma.user.create({
+      data: {
+        walletAddress: '0xpostersearch',
+        username: 'postersearch',
+        tier: 'Dust',
+        trustScore: 600,
+      },
+    });
+    await prisma.job.create({
+      data: {
+        creatorId: poster.id,
+        title: 'Senior Solidity Engineer',
+        description: 'Smart contract dev',
+        companyName: 'Chain Labs',
+        location: 'Remote',
+        jobType: 'Contract',
+        requirements: [],
+        minTrustScore: 200,
+        reward: 800,
+        status: 'OPEN',
+      },
+    });
+    const token = await jwtService.signAsync({ userId: poster.id, walletAddress: poster.walletAddress });
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/jobs/search')
+      .query({ keyword: 'Solidity' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].title).toContain('Solidity');
+  });
+
+  it('GET /jobs/hot returns top jobs', async () => {
+    const poster = await prisma.user.create({
+      data: {
+        walletAddress: '0xposterhot',
+        username: 'posterhot',
+        tier: 'Dust',
+        trustScore: 600,
+      },
+    });
+    await prisma.job.createMany({
+      data: Array.from({ length: 5 }).map((_, idx) => ({
+        creatorId: poster.id,
+        title: `Hot Job ${idx}`,
+        description: 'desc',
+        companyName: 'HotCo',
+        location: 'Remote',
+        jobType: 'Contract',
+        requirements: [],
+        minTrustScore: 100,
+        reward: 100 + idx * 100,
+        status: 'OPEN',
+      })),
+    });
+    const token = await jwtService.signAsync({ userId: poster.id, walletAddress: poster.walletAddress });
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/jobs/hot')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body).toHaveLength(4);
+    expect(response.body[0].reward).toBeGreaterThan(response.body[3].reward);
+  });
 });

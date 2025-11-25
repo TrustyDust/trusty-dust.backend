@@ -48,6 +48,8 @@ model User {
   chatParticipants ChatParticipant[]
   chatMessages     ChatMessage[]
   walletReputations WalletReputation[]
+  following        Follow[]        @relation("Following")
+  followers        Follow[]        @relation("Followers")
 }
 
 model Post {
@@ -269,4 +271,15 @@ model WalletReputation {
   updatedAt       DateTime @updatedAt
 
   @@index([address, chainId])
+}
+
+model Follow {
+  id             String @id @default(cuid())
+  followerId     String
+  followingId    String
+  follower       User   @relation("Following", fields: [followerId], references: [id])
+  following      User   @relation("Followers", fields: [followingId], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@unique([followerId, followingId])
 }

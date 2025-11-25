@@ -13,4 +13,16 @@ export class UpdateUserDto {
   @IsOptional()
   @IsUrl({ require_protocol: true })
   avatar?: string;
+
+  @ApiPropertyOptional({ description: 'Displayed job title/headline', maxLength: 120 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  jobTitle?: string;
+
+  @ApiPropertyOptional({ description: 'Preferred job type (Contract, Full-time, etc.)', maxLength: 60 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  jobType?: string;
 }
