@@ -59,6 +59,9 @@ Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`,
 | `/api/v1/users/me` | GET/PATCH | Lihat & update profil (JWT required).
 | `/api/v1/users/search/people` | GET | Cari user berdasarkan keyword/job title/job type (limit 60 req/menit, cursor pagination).
 | `/api/v1/users/suggested` | GET | Ambil 3 saran user dengan tier/job type serupa (30 req/menit).
+| `/api/v1/users/:id` | GET | Ambil profil publik user lain (stat followers/posts/job + status follow).
+| `/api/v1/users/:id/posts` | GET | Post feed spesifik user (limit/cursor, plus viewer reaction).
+| `/api/v1/users/:id/jobs` | GET | Daftar job yang diposting user tertentu (limit/cursor, include count aplikasi).
 | `/api/v1/users/:id/follow` | POST/DELETE | Follow/unfollow user lain (120 req/menit).
 | `/api/v1/social/posts` | POST | Buat post, otomatis +3 DUST (rate limit 20/min/IP).
 | `/api/v1/social/posts` | GET | Ambil feed terbaru (media, counts, preview komentar, penanda viewer follow/reaction).

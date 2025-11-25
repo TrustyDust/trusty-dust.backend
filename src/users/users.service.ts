@@ -1,15 +1,23 @@
 import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, ReactionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrivyUserPayload } from '../auth/interfaces/privy-user.interface';
 import { SearchPeopleQueryDto } from './dto/search-people.dto';
+import { ProfileFeedQueryDto } from './dto/profile-feed-query.dto';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  private clamp(value: number | undefined, min: number, max: number, fallback: number) {
+    if (value === undefined || Number.isNaN(value)) {
+      return fallback;
+    }
+    return Math.min(Math.max(value, min), max);
+  }
 
   findById(id: string) {
     this.logger.debug(`Fetching user by id ${id}`);
@@ -214,5 +222,168 @@ export class UsersService {
     });
 
     return fallback;
+  }
+
+  async getPublicProfile(viewerId: string, targetId: string) {
+    const profile = await this.prisma.user.findUnique({
+      where: { id: targetId },
+      select: {
+        id: true,
+        username: true,
+        avatar: true,
+        jobTitle: true,
+        jobType: true,
+        tier: true,
+        trustScore: true,
+        walletAddress: true,
+        createdAt: true,
+        followers: {
+          where: { followerId: viewerId },
+          select: { id: true },
+        },
+        _count: {
+          select: {
+            followers: true,
+            following: true,
+            posts: true,
+            createdJobs: true,
+          },
+        },
+      },
+    });
+    if (!profile) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      id: profile.id,
+      username: profile.username,
+      avatar: profile.avatar,
+      jobTitle: profile.jobTitle,
+      jobType: profile.jobType,
+      tier: profile.tier,
+      trustScore: profile.trustScore,
+      walletAddress: profile.walletAddress,
+      createdAt: profile.createdAt,
+      stats: {
+        followers: profile._count.followers,
+        following: profile._count.following,
+        posts: profile._count.posts,
+        jobs: profile._count.createdJobs,
+      },
+      isMe: viewerId === profile.id,
+      isFollowing: profile.followers.length > 0,
+    };
+  }
+
+  async listUserPosts(viewerId: string, targetId: string, query: ProfileFeedQueryDto) {
+    await this.ensureExists(targetId);
+    const limit = this.clamp(query.limit, 1, 20, 5);
+    const cursorOptions = query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : undefined;
+
+    const posts = await this.prisma.post.findMany({
+      where: { authorId: targetId },
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1,
+      ...(cursorOptions ?? {}),
+      include: { media: true },
+    });
+
+    const page = posts.slice(0, limit);
+    const postIds = page.map((post) => post.id);
+
+    const [reactionGroupRaw, viewerReactionsRaw] = await Promise.all([
+      postIds.length
+        ? this.prisma.postReaction.groupBy({
+            by: ['postId', 'type'],
+            where: { postId: { in: postIds } },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
+      postIds.length
+        ? this.prisma.postReaction.findMany({
+            where: { postId: { in: postIds }, userId: viewerId },
+            select: { postId: true, type: true },
+          })
+        : Promise.resolve([]),
+    ]);
+    const reactionGroup = reactionGroupRaw as Array<{
+      postId: string;
+      type: ReactionType;
+      _count: { _all: number };
+    }>;
+    const viewerReactions = viewerReactionsRaw as Array<{
+      postId: string;
+      type: ReactionType;
+    }>;
+
+    const counts = new Map<string, { like: number; comment: number; repost: number }>();
+    postIds.forEach((id) => counts.set(id, { like: 0, comment: 0, repost: 0 }));
+    reactionGroup.forEach((group) => {
+      const bucket = counts.get(group.postId);
+      if (!bucket) {
+        return;
+      }
+      if (group.type === ReactionType.LIKE) bucket.like = group._count._all;
+      if (group.type === ReactionType.COMMENT) bucket.comment = group._count._all;
+      if (group.type === ReactionType.REPOST) bucket.repost = group._count._all;
+    });
+
+    const viewerReactionMap = new Map(
+      viewerReactions.map((reaction) => [reaction.postId, reaction.type]),
+    );
+
+    const hasNext = posts.length > limit;
+    const data = page.map((post) => ({
+      id: post.id,
+      text: post.text,
+      ipfsCid: post.ipfsCid,
+      createdAt: post.createdAt,
+      media: post.media,
+      reactionCounts: counts.get(post.id) ?? { like: 0, comment: 0, repost: 0 },
+      viewerReaction: viewerReactionMap.get(post.id) ?? null,
+    }));
+
+    return {
+      data,
+      nextCursor: hasNext ? data.at(-1)?.id ?? null : null,
+    };
+  }
+
+  async listUserJobs(targetId: string, query: ProfileFeedQueryDto, viewerId?: string) {
+    await this.ensureExists(targetId);
+    const limit = this.clamp(query.limit, 1, 20, 5);
+    const cursorOptions = query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : undefined;
+
+    const jobs = await this.prisma.job.findMany({
+      where: { creatorId: targetId },
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1,
+      ...(cursorOptions ?? {}),
+      select: {
+        id: true,
+        title: true,
+        companyName: true,
+        companyLogo: true,
+        location: true,
+        jobType: true,
+        reward: true,
+        minTrustScore: true,
+        status: true,
+        createdAt: true,
+        _count: { select: { applications: true } },
+      },
+    });
+
+    const page = jobs.slice(0, limit);
+    const hasNext = jobs.length > limit;
+    return {
+      data: page.map((job) => ({
+        ...job,
+        applications: job._count.applications,
+        isOwner: viewerId === targetId,
+      })),
+      nextCursor: hasNext ? page.at(-1)?.id ?? null : null,
+    };
   }
 }

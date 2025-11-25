@@ -125,3 +125,9 @@
 - `SocialService` kini menggabungkan data Post + media + reaction counts per tipe + status follow viewer + komentar terbaru; detail endpoint juga menampilkan seluruh komentar (limit default 20).
 - DTO tambahan (`ListPostsQueryDto`, `PostDetailQueryDto`) dengan validasi limit, plus unit test baru yang memastikan aggregate data terbentuk benar.
 - E2E test sosial diperluas untuk memverifikasi feed & detail; README/table endpoint diperbarui menjelaskan API baru (tes e2e masih terganjal koneksi DB Neon).
+
+## 24. User Profile & Tabs
+- Menambah `GET /users/:id` untuk mengambil profil publik (stats followers/following/post/job + info follow/owner) serta endpoint pagination `GET /users/:id/posts` dan `GET /users/:id/jobs` agar FE bisa mengisi tab Post/Job Posted.
+- DTO `ProfileFeedQueryDto` dipakai untuk limit/cursor pada kedua tab.
+- `UsersService` kini menghitung reaction counts pada feed milik user, menandai reaction viewer, serta menghitung jumlah aplikasi per job. Unit tests diperluas untuk profil dan feed baru.
+- README diperbarui agar mencantumkan API profile baru.

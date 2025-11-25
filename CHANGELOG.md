@@ -10,9 +10,12 @@
 - Added rate limiting via `@nestjs/throttler` for `/auth/login` (5 req/min), social interactions (20–60 req/min tiers), wallet reputation analysis (10 req/5 min), `/zk/generate` (5 req/min), jobs create/apply/submit/confirm (10–30 req/5 min) plus `/jobs/me` & `/jobs/:id/applicants` (60 req/min), notification polling (60 req/min), chat endpoints (conversation list/create/messages at 60/20/60 req/min), and trust/tier reads (120 req/min) to prevent abuse.
 - Added discovery/follow features: Prisma `Follow` model, people search with cursor pagination, suggested people endpoint, follow/unfollow API, job search & hot job listing, and new `/jobs/me` + `/jobs/:id/applicants` responses to support the FE.
 - Hybrid AI scoring (heuristics + Gemini overlay), refreshed wallet reputation responses (reasoning + zkProofId), new `/zk/generate` endpoint, and Noir circuit moved to `circuits/wallet_score` with updated proving service.
+- Social feed endpoints `/social/posts` & `/social/posts/:id` (with reaction counts, comment previews/detail, viewer follow/reaction state) plus unit/e2e coverage.
+- User profile view support: `GET /users/:id`, `/users/:id/posts`, `/users/:id/jobs` returning stats, follow state, per-user post feed with reactions, and job list with application counts.
+- Swagger UI now serves `swagger-dark.css` from `public/` via `NestExpressApplication` static assets.
 
 ### Fixed
-- Swagger assets served via CDN so `/docs` works when deployed to Vercel/serverless.
+- Swagger assets served via CDN so `/docs` works when deployed to Vercel/serverless; custom dark theme served via local static assets.
 
 ### Testing
 - New unit tests for chat service plus e2e coverage (`test/chat.e2e-spec.ts`).

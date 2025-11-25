@@ -10,6 +10,16 @@ describe('UsersService', () => {
       upsert: jest.fn(),
       update: jest.fn(),
     },
+    post: {
+      findMany: jest.fn(),
+    },
+    postReaction: {
+      groupBy: jest.fn(),
+      findMany: jest.fn(),
+    },
+    job: {
+      findMany: jest.fn(),
+    },
   } as unknown as PrismaService;
 
   let service: UsersService;
@@ -95,6 +105,79 @@ describe('UsersService', () => {
     it('throws NotFound when missing', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
       await expect(service.ensureExists('missing')).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('getPublicProfile', () => {
+    it('returns profile with stats and follow flag', async () => {
+      const now = new Date();
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'target',
+        username: 'alex',
+        avatar: 'https://',
+        jobTitle: 'Designer',
+        jobType: 'Full-time',
+        tier: 'Spark',
+        trustScore: 400,
+        walletAddress: '0xabc',
+        createdAt: now,
+        followers: [{ id: 'link' }],
+        _count: { followers: 10, following: 4, posts: 3, createdJobs: 1 },
+      });
+
+      const profile = await service.getPublicProfile('viewer', 'target');
+      expect(profile.isFollowing).toBe(true);
+      expect(profile.stats.followers).toBe(10);
+    });
+  });
+
+  describe('listUserPosts', () => {
+    it('returns posts with counts and viewer reactions', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'target' });
+      (prisma.post.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: 'post-1',
+          text: 'hello',
+          ipfsCid: null,
+          createdAt: new Date(),
+          media: [],
+        },
+      ]);
+      (prisma.postReaction.groupBy as jest.Mock).mockResolvedValue([
+        { postId: 'post-1', type: 'LIKE', _count: { _all: 2 } },
+      ]);
+      (prisma.postReaction.findMany as jest.Mock).mockResolvedValue([
+        { postId: 'post-1', type: 'LIKE' },
+      ]);
+
+      const result = await service.listUserPosts('viewer', 'target', { limit: 5 });
+      expect(result.data[0].reactionCounts.like).toBe(2);
+      expect(result.data[0].viewerReaction).toBe('LIKE');
+    });
+  });
+
+  describe('listUserJobs', () => {
+    it('returns jobs with application counts', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'target' });
+      (prisma.job.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: 'job-1',
+          title: 'Designer',
+          companyName: 'Trusty',
+          companyLogo: null,
+          location: 'Remote',
+          jobType: 'Contract',
+          reward: 100,
+          minTrustScore: 200,
+          status: 'OPEN',
+          createdAt: new Date(),
+          _count: { applications: 2 },
+        },
+      ]);
+
+      const result = await service.listUserJobs('target', { limit: 5 }, 'viewer');
+      expect(result.data[0].applications).toBe(2);
+      expect(result.data[0].isOwner).toBe(false);
     });
   });
 });

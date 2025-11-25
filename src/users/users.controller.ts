@@ -7,6 +7,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SearchPeopleQueryDto } from './dto/search-people.dto';
+import { ProfileFeedQueryDto } from './dto/profile-feed-query.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth('backend-jwt')
@@ -61,5 +62,35 @@ export class UsersController {
   @ApiOperation({ summary: 'Unfollow a user' })
   unfollow(@CurrentUser() user: RequestUser, @Param('id') targetId: string) {
     return this.usersService.unfollowUser(user.id, targetId);
+  }
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get public profile for another user' })
+  profile(@CurrentUser() user: RequestUser, @Param('id') targetId: string) {
+    return this.usersService.getPublicProfile(user.id, targetId);
+  }
+
+  @Get(':id/posts')
+  @UseGuards(ThrottlerGuard, JwtAuthGuard)
+  @Throttle({ usersProfilePosts: { limit: 60, ttl: 60 } })
+  @ApiOperation({ summary: 'List posts authored by target user' })
+  listProfilePosts(
+    @CurrentUser() user: RequestUser,
+    @Param('id') targetId: string,
+    @Query() query: ProfileFeedQueryDto,
+  ) {
+    return this.usersService.listUserPosts(user.id, targetId, query);
+  }
+
+  @Get(':id/jobs')
+  @UseGuards(ThrottlerGuard, JwtAuthGuard)
+  @Throttle({ usersProfileJobs: { limit: 60, ttl: 60 } })
+  @ApiOperation({ summary: 'List jobs posted by target user' })
+  listProfileJobs(
+    @CurrentUser() user: RequestUser,
+    @Param('id') targetId: string,
+    @Query() query: ProfileFeedQueryDto,
+  ) {
+    return this.usersService.listUserJobs(targetId, query, user.id);
   }
 }
