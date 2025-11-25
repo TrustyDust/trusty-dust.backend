@@ -46,6 +46,7 @@ Backend MVP untuk ekosistem TrustyDust yang menggabungkan reputasi sosial, job e
 - `RPC_URL` → RPC Lisk/Mantle/custom EVM.
 - `TRUST_VERIFICATION_ADDRESS`, `DUST_TOKEN_ADDRESS`, `ESCROW_FACTORY_ADDRESS`, `SBT_CONTRACT_ADDRESS`, `ESCROW_SIGNER_KEY` → alamat kontrak + private key signer yang digunakan oleh `BlockchainService`.
 - `SUPABASE_URL` & `SUPABASE_SERVICE_ROLE_KEY` → kredensial Supabase Realtime (server-side service role agar bisa broadcast tanpa batasan RLS).
+- `SUPABASE_HEALTH_TABLE` → nama tabel yang dipakai endpoint `/health/supabase` untuk melakukan ping (default `ChatMessage`).
 - `GEMINI_API_KEY` → optional; isi untuk mengaktifkan overlay AI (Gemini Pro) pada modul AI Scoring.
 
 ## Prisma Schema

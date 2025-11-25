@@ -22,6 +22,7 @@ import { ChatModule } from './chat/chat.module';
 import { OnchainCollectorModule } from './onchain-collector/onchain-collector.module';
 import { AiScoringModule } from './ai-scoring/ai-scoring.module';
 import { WalletReputationModule } from './wallet-reputation/wallet-reputation.module';
+import { SupabaseModule } from './supabase/supabase.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { WalletReputationModule } from './wallet-reputation/wallet-reputation.mo
     ChatModule,
     WalletReputationModule,
     NotificationModule,
+    SupabaseModule,
   ],
   controllers: [AppController],
   providers: [

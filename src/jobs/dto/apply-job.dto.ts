@@ -27,6 +27,7 @@ export class ApplyJobDto {
   @ApiPropertyOptional({
     description: 'Any extra metadata FE wants to attach',
     type: 'object',
+    additionalProperties: true,
     example: { cvIpfsCid: 'Qm...', coverLetter: '...' },
   })
   @IsOptional()

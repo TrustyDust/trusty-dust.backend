@@ -28,11 +28,22 @@ jest.mock('@supabase/supabase-js', () => {
     unsubscribe: jest.fn().mockResolvedValue('ok'),
   };
 
+  const defaultQueryResponse = { data: [], error: null };
+
+  const buildQuery = () => {
+    const query = {
+      select: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockResolvedValue(defaultQueryResponse),
+    };
+    return query;
+  };
+
   return {
     createClient: jest.fn(() => ({
       channel: jest.fn(() => ({
         ...channelMock,
       })),
+      from: jest.fn(() => buildQuery()),
     })),
   };
 });

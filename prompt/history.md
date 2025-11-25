@@ -109,3 +109,8 @@
 - `ApplyJobDto` + `JobsService.apply`: menerima CV URL, daftar portfolio (dibersihkan dari string kosong), serta metadata bebas, lalu menyimpannya ke database.
 - `jobs.service.spec.ts`: test unit diperluas guna memverifikasi field baru ikut dipersist dan bukti ZK diteruskan.
 - `test/jobs.e2e-spec.ts`: e2e apply job kini mengirim CV/portfolio/metadata dan melakukan assert terhadap nilai yang tersimpan.
+
+## 21. Supabase Health Check
+- Membuat `SupabaseService` (module baru) yang menyiapkan client `@supabase/supabase-js` dan menyediakan method `testConnection(table?)` untuk mem-ping PostgREST (`select * limit 1`) sekaligus mengukur latency.
+- `GET /health/supabase` (dalam `AppController`) mengeksekusi service tersebut; bisa menerima query `table` atau fallback ke env `SUPABASE_HEALTH_TABLE` (default `ChatMessage`).
+- `.env.example` & README ditambah variabel `SUPABASE_HEALTH_TABLE` agar tim bisa memilih tabel aman sebagai target ping.
