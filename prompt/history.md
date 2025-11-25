@@ -131,3 +131,8 @@
 - DTO `ProfileFeedQueryDto` dipakai untuk limit/cursor pada kedua tab.
 - `UsersService` kini menghitung reaction counts pada feed milik user, menandai reaction viewer, serta menghitung jumlah aplikasi per job. Unit tests diperluas untuk profil dan feed baru.
 - README diperbarui agar mencantumkan API profile baru.
+
+## 25. Notifications – Mark as Read
+- Prisma `Notification` model kini memiliki `isRead` (default false) dan `readAt` untuk mencatat waktu dibaca.
+- Endpoint baru `PATCH /notifications/:id/read` yang memanggil `NotificationService.markAsRead`, memastikan notifikasi milik user, lalu menyetel flag + timestamp.
+- Unit tests (`notification.service.spec.ts`) diperluas untuk meng-cover flow mark-as-read; README menambahkan dokumentasi endpoint baru.

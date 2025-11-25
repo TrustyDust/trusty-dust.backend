@@ -7,6 +7,8 @@ describe('NotificationService', () => {
     notification: {
       create: jest.fn(),
       findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
     },
   } as unknown as PrismaService;
   const gateway = { emit: jest.fn() } as unknown as NotificationGateway;
@@ -38,5 +40,21 @@ describe('NotificationService', () => {
       orderBy: { createdAt: 'desc' },
     });
     expect(notifications).toEqual([{ id: 1 }]);
+  });
+
+  it('markAsRead updates notification and sets readAt', async () => {
+    const existing = { id: 'notif', userId: 'user', isRead: false };
+    (prisma.notification.findFirst as jest.Mock).mockResolvedValue(existing);
+    (prisma.notification.update as jest.Mock).mockResolvedValue({ ...existing, isRead: true });
+
+    const result = await service.markAsRead('user', 'notif');
+    expect(prisma.notification.update).toHaveBeenCalledWith({
+      where: { id: 'notif' },
+      data: {
+        isRead: true,
+        readAt: expect.any(Date),
+      },
+    });
+    expect(result.isRead).toBe(true);
   });
 });

@@ -13,6 +13,7 @@
 - Social feed endpoints `/social/posts` & `/social/posts/:id` (with reaction counts, comment previews/detail, viewer follow/reaction state) plus unit/e2e coverage.
 - User profile view support: `GET /users/:id`, `/users/:id/posts`, `/users/:id/jobs` returning stats, follow state, per-user post feed with reactions, and job list with application counts.
 - Swagger UI now serves `swagger-dark.css` from `public/` via `NestExpressApplication` static assets.
+- Notifications can now be marked read via `PATCH /notifications/:id/read`; schema adds `isRead`/`readAt` and service/tests updated accordingly.
 
 ### Fixed
 - Swagger assets served via CDN so `/docs` works when deployed to Vercel/serverless; custom dark theme served via local static assets.
