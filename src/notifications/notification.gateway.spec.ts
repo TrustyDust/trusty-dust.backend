@@ -1,4 +1,4 @@
-import { NotificationGateway } from './notification.gateway';
+import { NotificationGateway } from '@/notifications/notification.gateway';
 
 describe('NotificationGateway', () => {
   let gateway: NotificationGateway;

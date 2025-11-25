@@ -1,8 +1,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { ZkService } from './zk.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { BlockchainService } from '../blockchain/blockchain.service';
-import { ZkProver } from './zk.prover';
+import { ZkService } from '@/zk/zk.service';
+import { PrismaService } from '@/prisma/prisma.service';
+import { BlockchainService } from '@/blockchain/blockchain.service';
+import { ZkProver } from '@/zk/zk.prover';
 
 describe('ZkService', () => {
   const prisma = {

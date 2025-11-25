@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { WalletOnchainProfile } from '../onchain-collector/onchain-collector.types';
-import { ReputationTier, WalletScoreBreakdown } from './ai-scoring.types';
+import { WalletOnchainProfile } from '@/onchain-collector/onchain-collector.types';
+import { ReputationTier, WalletScoreBreakdown } from '@/ai-scoring/ai-scoring.types';
 
 /**
  * AI/ML placeholder – we currently rely on deterministic heuristics so the FE can be built.

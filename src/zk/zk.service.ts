@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { BlockchainService } from '../blockchain/blockchain.service';
-import { ZkProver } from './zk.prover';
-import { ZkProofResult } from './zk.types';
+import { PrismaService } from '@/prisma/prisma.service';
+import { BlockchainService } from '@/blockchain/blockchain.service';
+import { ZkProver } from '@/zk/zk.prover';
+import { ZkProofResult } from '@/zk/zk.types';
 
 @Injectable()
 export class ZkService {
