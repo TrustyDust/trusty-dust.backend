@@ -36,6 +36,7 @@
     "@noir-lang/backend_barretenberg": "^0.32.0",
     "@noir-lang/noir_wasm": "^0.30.0",
     "@prisma/client": "^6.18.0",
+    "@supabase/supabase-js": "^2.45.0",
     "axios": "^1.13.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",

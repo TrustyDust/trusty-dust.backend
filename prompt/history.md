@@ -51,3 +51,9 @@
 
 ## 10. Swagger Deployment Fix
 - Mengubah konfigurasi Swagger di `src/main.ts` agar memuat aset CSS/JS dan favicon dari CDN `swagger-ui-dist`, memastikan halaman `/docs` tidak lagi 404 ketika dideploy di Vercel / lingkungan serverless.
+
+## 11. Realtime Chat (Supabase)
+- Menambahkan module Chat (controller/service + DTO) dengan endpoint `/api/v1/chat/**` untuk list/create percakapan serta kirim pesan, semuanya terlindungi `JwtAuthGuard`.
+- Memperluas Prisma schema (`ChatConversation`, `ChatParticipant`, `ChatMessage` + relasi di `User`) dan menyediakan e2e + unit test agar flow CRUD chat tervalidasi.
+- Mengintegrasikan Supabase Realtime menggunakan `@supabase/supabase-js` (service role key). Setiap pesan/percakapan baru otomatis broadcast ke channel `chat:<conversationId>`; ketika env kosong, service aman fallback tanpa realtime.
+- Update README + `.env.example` agar FE tahu env baru, endpoint baru, serta best practice penggunaan Supabase sebagai layer realtime di atas Neon/Postgres.

@@ -17,6 +17,7 @@ import { EscrowModule } from './escrow/escrow.module';
 import { NotificationModule } from './notifications/notification.module';
 import { BlockchainModule } from './blockchain/blockchain.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     ZkModule,
     JobsModule,
     EscrowModule,
+    ChatModule,
     NotificationModule,
   ],
   controllers: [AppController],

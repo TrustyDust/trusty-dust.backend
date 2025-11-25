@@ -45,6 +45,8 @@ model User {
   notifications  Notification[]
   balances       UserTokenBalance[]
   zkProofs       ZkProof[]
+  chatParticipants ChatParticipant[]
+  chatMessages     ChatMessage[]
 }
 
 model Post {
@@ -204,4 +206,36 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id])
   message   String
   createdAt DateTime @default(now())
+}
+
+model ChatConversation {
+  id           String            @id @default(cuid())
+  title        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  participants ChatParticipant[]
+  messages     ChatMessage[]
+}
+
+model ChatParticipant {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id])
+  userId         String
+  user           User             @relation(fields: [userId], references: [id])
+  lastSeenAt     DateTime?
+
+  @@unique([conversationId, userId])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id])
+  senderId       String
+  sender         User             @relation(fields: [senderId], references: [id])
+  content        String
+  attachments    Json?
+  metadata       Json?
+  createdAt      DateTime         @default(now())
 }

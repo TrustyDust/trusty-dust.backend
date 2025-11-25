@@ -20,3 +20,19 @@ jest.mock('@noir-lang/backend_barretenberg', () => {
     })),
   };
 }, { virtual: true });
+
+jest.mock('@supabase/supabase-js', () => {
+  const channelMock = {
+    subscribe: jest.fn().mockResolvedValue(undefined),
+    send: jest.fn().mockResolvedValue('ok'),
+    unsubscribe: jest.fn().mockResolvedValue('ok'),
+  };
+
+  return {
+    createClient: jest.fn(() => ({
+      channel: jest.fn(() => ({
+        ...channelMock,
+      })),
+    })),
+  };
+});

@@ -12,6 +12,7 @@ Backend MVP untuk ekosistem TrustyDust yang menggabungkan reputasi sosial, job e
 - **Tier & SBT Module**: Otomatis upgrade tier, update metadata SBT, dan notifikasi user.
 - **Jobs + Escrow Module**: Flow full (create/apply/submit/confirm), mengunci USDC on-chain lewat viem escrow client.
 - **Notification Module**: REST list + Websocket gateway untuk push updates.
+- **Chat Module**: DM antar user untuk koordinasi job/social, persistence via Prisma + broadcast realtime menggunakan Supabase Realtime channel.
 - **Blockchain Module**: viem public/wallet client + ABI loader untuk Dust Token, TrustVerification, EscrowFactory, dan SBT NFT.
 
 ## Persiapan Lingkungan
@@ -39,9 +40,10 @@ Backend MVP untuk ekosistem TrustyDust yang menggabungkan reputasi sosial, job e
 - `PRIVY_SECRET_KEY` → untuk verifikasi token Privy.
 - `RPC_URL` → RPC Lisk/Mantle/custom EVM.
 - `TRUST_VERIFICATION_ADDRESS`, `DUST_TOKEN_ADDRESS`, `ESCROW_FACTORY_ADDRESS`, `SBT_CONTRACT_ADDRESS`, `ESCROW_SIGNER_KEY` → alamat kontrak + private key signer yang digunakan oleh `BlockchainService`.
+- `SUPABASE_URL` & `SUPABASE_SERVICE_ROLE_KEY` → kredensial Supabase Realtime (server-side service role agar bisa broadcast tanpa batasan RLS).
 
 ## Prisma Schema
-Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`, `PostMedia`, `PostReaction`, `PostBoost`, `TrustEvent`, `TrustSnapshot`, `ZkProof`, `TierHistory`, `SbtToken`, `Job`, `JobApplication`, `JobEscrow`, `Token`, `UserTokenBalance`, `Notification`.
+Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`, `PostMedia`, `PostReaction`, `PostBoost`, `TrustEvent`, `TrustSnapshot`, `ZkProof`, `TierHistory`, `SbtToken`, `Job`, `JobApplication`, `JobEscrow`, `Token`, `UserTokenBalance`, `Notification`, serta tabel chat baru `ChatConversation`, `ChatParticipant`, `ChatMessage`.
 
 ## Endpoint Ringkas
 | Endpoint | Method | Keterangan |
@@ -60,6 +62,9 @@ Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`,
 | `/api/v1/jobs/application/:id/confirm` | POST | Poster konfirmasi, escrow release USDC, TrustEvent +100.
 | `/api/v1/tier/me` | GET | Lihat tier + history.
 | `/api/v1/notifications` | GET | Ambil notifikasi terbaru; socket gateway tersedia di `ws://host:PORT` (query `userId` untuk join room pribadi).
+| `/api/v1/chat/conversations` | GET/POST | List percakapan & buat DM/room baru (otomatis menambahkan creator + participant).
+| `/api/v1/chat/conversations/:id/messages` | GET | Ambil pesan (limit default 50) untuk conversation tertentu.
+| `/api/v1/chat/messages` | POST | Kirim pesan lalu broadcast ke channel Supabase `chat:<conversationId>`.
 
 Semua endpoint (kecuali `/auth/login` & `/health`) memakai `JwtAuthGuard`.
 
@@ -79,6 +84,13 @@ Semua endpoint (kecuali `/auth/login` & `/health`) memakai `JwtAuthGuard`.
 2. **Apply**: Worker kirim proof, burn 20 DUST, membuat `JobApplication` status APPLIED.
 3. **Submit**: Worker mengirim `workSubmissionText`, status menjadi SUBMITTED.
 4. **Confirm**: Poster konfirmasi → Escrow release (atau refund jika perlu), `TrustEvent(job_completed, +100)` dijalankan dan tier dicek ulang.
+
+## Chat + Supabase Realtime
+- **Source of truth di Neon** – setiap percakapan & pesan tetap tersimpan di `ChatConversation`/`ChatMessage` melalui Prisma sehingga histori aman dan bisa di-query ulang (search, analytics).
+- **Broadcast realtime via Supabase** – backend memakai `@supabase/supabase-js` dengan *service role key* untuk melakukan broadcast ke channel `chat:<conversationId>` setiap kali percakapan dibuat atau pesan dikirim.
+- **Best practice security** – hanya service role yang digunakan server-side; FE cukup memakai anon/public key untuk subscribe dan menerima broadcast (tidak perlu hak write). Channel menggunakan naming deterministik sehingga FE bisa langsung `supabase.channel('chat:' + conversationId)` setelah menekan DM.
+- **Reconnect strategy** – FE selalu panggil `/api/v1/chat/conversations/:id/messages` lebih dulu (server pagination) lalu menyalakan Supabase subscription. Jika koneksi terputus, FE dapat melakukan resync dengan memanggil endpoint yang sama untuk memastikan tidak ada pesan terlewat.
+- **Testing** – Saat env Supabase belum diisi, backend otomatis menonaktifkan broadcast (log peringatan) namun seluruh endpoint tetap berfungsi sehingga flow dapat diuji secara lokal maupun di CI.
 
 ## Noir + ZK Backend
 Best practice singkat saat memakai Noir + Barretenberg:

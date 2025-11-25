@@ -19,7 +19,9 @@ describe('NotificationService', () => {
   });
 
   it('notify stores notification and emits via gateway', async () => {
-    (prisma.notification.create as jest.Mock).mockResolvedValue({ id: 'notif' });
+    (prisma.notification.create as jest.Mock).mockResolvedValue({
+      id: 'notif',
+    });
     const result = await service.notify('user', 'hello');
     expect(prisma.notification.create).toHaveBeenCalledWith({
       data: { userId: 'user', message: 'hello' },
