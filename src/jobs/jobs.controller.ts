@@ -1,5 +1,6 @@
 import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JobsService } from './jobs.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -12,11 +13,12 @@ import { ConfirmWorkDto } from './dto/confirm-work.dto';
 @ApiTags('Jobs')
 @ApiBearerAuth('backend-jwt')
 @Controller('jobs')
-@UseGuards(JwtAuthGuard)
+@UseGuards(ThrottlerGuard, JwtAuthGuard)
 export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
 
   @Post('create')
+  @Throttle({ jobsCreate: { limit: 10, ttl: 300 } })
   @ApiOperation({ summary: 'Create job, burn DUST, and lock escrow' })
   @ApiCreatedResponse({ description: 'Job record created' })
   create(@CurrentUser() user: RequestUser, @Body() dto: CreateJobDto) {
@@ -24,6 +26,7 @@ export class JobsController {
   }
 
   @Post(':id/apply')
+  @Throttle({ jobsApply: { limit: 30, ttl: 300 } })
   @ApiOperation({ summary: 'Apply to a job with ZK proof and DUST burn' })
   @ApiOkResponse({ description: 'Application created' })
   apply(@CurrentUser() user: RequestUser, @Param('id') jobId: string, @Body() dto: ApplyJobDto) {
@@ -31,6 +34,7 @@ export class JobsController {
   }
 
   @Post('application/:id/submit')
+  @Throttle({ jobsSubmit: { limit: 30, ttl: 300 } })
   @ApiOperation({ summary: 'Submit work for an accepted application' })
   @ApiOkResponse({ description: 'Application updated to SUBMITTED' })
   submit(
@@ -42,6 +46,7 @@ export class JobsController {
   }
 
   @Post('application/:id/confirm')
+  @Throttle({ jobsConfirm: { limit: 30, ttl: 300 } })
   @ApiOperation({ summary: 'Poster confirms work and releases escrow' })
   @ApiOkResponse({ description: 'Application updated to CONFIRMED' })
   confirm(

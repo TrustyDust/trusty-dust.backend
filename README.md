@@ -61,10 +61,10 @@ Seluruh entitas yang diminta tersedia di `prisma/schema.prisma`: `User`, `Post`,
 | `/api/v1/trust/score` | GET | Ambil skor terkini.
 | `/api/v1/zk/generate` | POST | Backend generate proof Noir dari skor yang diberikan (5 request/min/IP).
 | `/api/v1/zk/verify` | POST | Simpan proof Noir setelah diverifikasi on-chain.
-| `/api/v1/jobs/create` | POST | Buat job (butuh proof ≥ minTrustScore, burn 50 DUST, lock escrow).
-| `/api/v1/jobs/:id/apply` | POST | Worker apply (proof ≥ minTrustScore, burn 20 DUST).
-| `/api/v1/jobs/application/:id/submit` | POST | Worker submit deliverable.
-| `/api/v1/jobs/application/:id/confirm` | POST | Poster konfirmasi, escrow release USDC, TrustEvent +100.
+| `/api/v1/jobs/create` | POST | Buat job (butuh proof ≥ minTrustScore, burn 50 DUST, lock escrow) – dibatasi 10 req/5 menit/IP.
+| `/api/v1/jobs/:id/apply` | POST | Worker apply (proof ≥ minTrustScore, burn 20 DUST) – 30 req/5 menit/IP.
+| `/api/v1/jobs/application/:id/submit` | POST | Worker submit deliverable – 30 req/5 menit/IP.
+| `/api/v1/jobs/application/:id/confirm` | POST | Poster konfirmasi, escrow release USDC, TrustEvent +100 – 30 req/5 menit/IP.
 | `/api/v1/tier/me` | GET | Lihat tier + history.
 | `/api/v1/notifications` | GET | Ambil notifikasi terbaru; socket gateway tersedia di `ws://host:PORT` (query `userId` untuk join room pribadi).
 | `/api/v1/chat/conversations` | GET/POST | List percakapan & buat DM/room baru (otomatis menambahkan creator + participant).

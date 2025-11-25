@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { JobsService } from './jobs.service';
 import { JobsController } from './jobs.controller';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -10,7 +11,7 @@ import { NotificationModule } from '../notifications/notification.module';
 
 @Module({
   imports: [PrismaModule, DustModule, TrustModule, EscrowModule, ZkModule, NotificationModule],
-  providers: [JobsService],
+  providers: [JobsService, ThrottlerGuard],
   controllers: [JobsController],
 })
 export class JobsModule {}
