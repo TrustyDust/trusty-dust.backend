@@ -20,6 +20,9 @@ This document explains how the frontend (FE) should call the backend, the execut
 ## 2. User Profile Endpoints
 - `GET /users/me`: Fetch logged-in user profile.
 - `PATCH /users/me`: Update profile with `{ "username": "new", "avatar": "https://..." }`.
+- `GET /users/:id`: Fetch a public profile (stats: followers/following/posts/jobs, tier/trustScore, follow state relative to current user).
+- `GET /users/:id/posts?limit=5&cursor=<postId>`: Fetch posts authored by that user (FE uses this for Profile tab “Post”). Response includes reaction counts and viewer’s reaction (if any).
+- `GET /users/:id/jobs?limit=5&cursor=<jobId>`: Fetch jobs posted by that user (Profile tab “Job Posted”) with application counts. FE can check `isOwner` flag to show edit actions only for own profile.
 
 ## 3. Social Feed & Interactions
 1. **Create Post** – `POST /social/posts` with `{ "text": "Hello...", "mediaUrls": ["https://..."] }`. Backend rewards DUST and sends a notification.
@@ -73,6 +76,7 @@ This document explains how the frontend (FE) should call the backend, the execut
 
 ## 8. Notifications
 - `GET /notifications`: Poll for private notifications.
+- `PATCH /notifications/:id/read`: mark a notification as read (backend sets `isRead` and `readAt` timestamps).
 - Websocket: connect via Socket.io to `ws://host:PORT` with query `userId=<id>` to join personal room. Events emitted:
   - `notification` – user-specific payload
   - `notification:public` – aggregate feed

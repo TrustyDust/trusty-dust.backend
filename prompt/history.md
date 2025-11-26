@@ -136,3 +136,7 @@
 - Prisma `Notification` model kini memiliki `isRead` (default false) dan `readAt` untuk mencatat waktu dibaca.
 - Endpoint baru `PATCH /notifications/:id/read` yang memanggil `NotificationService.markAsRead`, memastikan notifikasi milik user, lalu menyetel flag + timestamp.
 - Unit tests (`notification.service.spec.ts`) diperluas untuk meng-cover flow mark-as-read; README menambahkan dokumentasi endpoint baru.
+
+## 26. Type-safety Polish
+- Menghapus sisa `any` di kode produksi: `AbiLoaderService` kini mengembalikan tipe `Abi`, Auth controller memakai `Request` bertipe `PrivyUserPayload`, logging interceptor memakai `AuthenticatedRequest`, `ZkProver` mengirim witness sebagai `Record<string,string>`, notification gateway memancarkan entitas Prisma `Notification`, dan metadata apply job dikonversi ke `Prisma.InputJsonValue`.
+- Build/test berjalan tanpa peringatan type-casting longgar; dokumentasi changelog/guide ikut diperbarui untuk mencatat perbaikan ini.

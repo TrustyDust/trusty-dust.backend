@@ -14,6 +14,7 @@
 - User profile view support: `GET /users/:id`, `/users/:id/posts`, `/users/:id/jobs` returning stats, follow state, per-user post feed with reactions, and job list with application counts.
 - Swagger UI now serves `swagger-dark.css` from `public/` via `NestExpressApplication` static assets.
 - Notifications can now be marked read via `PATCH /notifications/:id/read`; schema adds `isRead`/`readAt` and service/tests updated accordingly.
+- Type-safety sweep: removed `any` usage across ABI loader, auth controller, logging interceptor, Noir prover witness, notification gateway, and job apply metadata to tighten compile-time checks.
 
 ### Fixed
 - Swagger assets served via CDN so `/docs` works when deployed to Vercel/serverless; custom dark theme served via local static assets.
