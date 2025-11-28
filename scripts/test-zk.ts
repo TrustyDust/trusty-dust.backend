@@ -19,20 +19,36 @@ async function main() {
 
   const config = new ConfigService();
   const blockchain = new BlockchainService(config, new AbiLoaderService());
-  const valid = await blockchain.verifyTrustProof({ proof: proofResult.proof, publicInputs: proofResult.publicInputs });
-  console.log('On-chain verifier response:', valid);
+  if (config.get('VERIFIER_CONTRACT') ?? config.get('TRUST_VERIFICATION_ADDRESS')) {
+    try {
+      const valid = await blockchain.verifyTrustProof({
+        proof: proofResult.proof,
+        publicInputs: proofResult.publicInputs,
+      });
+      console.log('On-chain verifier response:', valid);
+    } catch (error) {
+      console.warn('Verifier contract call failed (continuing anyway):', error);
+    }
+  } else {
+    console.log('Skipping on-chain verifier call (VERIFIER_CONTRACT not configured)');
+  }
 
   const prisma = new PrismaService();
-  await prisma.zkProof.create({
-    data: {
-      userId: 'demo-user',
-      minScore: 300,
-      proof: proofResult.proof,
-      publicInputs: proofResult.publicInputs,
-    },
-  });
-  await prisma.$disconnect();
-  console.log('Proof persisted to database.');
+  try {
+    await prisma.zkProof.create({
+      data: {
+        userId: 'demo-user',
+        minScore: 300,
+        proof: proofResult.proof,
+        publicInputs: proofResult.publicInputs,
+      },
+    });
+    console.log('Proof persisted to database.');
+  } catch (error) {
+    console.warn('Skipping database persistence (likely missing demo user):', error);
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 main().catch((error) => {

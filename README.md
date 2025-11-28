@@ -160,7 +160,7 @@ cd circuits/wallet_score
 nargo check
 nargo compile
 ```
-Hasil kompilasi (`build/wallet_score.acir.gz`, proving/verification key) akan otomatis di-load oleh `ZkCompiler` ketika aplikasi start.
+Pada Noir 1.0+, hasil kompilasi disimpan ke `target/wallet_score.json` (berisi bytecode + ABI) dan backend kini otomatis mendeteksi artefak tersebut. Bila Anda masih menggunakan build lama, `build/wallet_score.acir.gz` tetap didukung sehingga tidak perlu memindahkan file secara manual.
 
 ### ZK Workflow Backend
 1. **Proving** – `POST /zk/generate` body `{ "score": 720, "minScore": 600, "userId": "optional" }` (dibatasi 5 req/min/IP). Service menyiapkan witness, menjalankan Noir WASM + Barretenberg untuk membuat proof + `publicInputs`, lalu menyimpannya ke tabel `ZkProof`.

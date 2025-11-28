@@ -1,8 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { CompiledCircuit, Abi } from '@noir-lang/types';
-import { CIRCUIT_BUILD, CIRCUIT_FILES, readAcirBuffer } from './zk.utils';
+import type { Abi } from '@noir-lang/types';
+import {
+  CIRCUIT_BUILD,
+  CIRCUIT_FILES,
+  CIRCUIT_TARGET,
+  readAcirBuffer,
+} from './zk.utils';
 
 interface CircuitManifest {
   name: string;
@@ -17,7 +22,7 @@ export class ZkCompiler implements OnModuleInit {
   private circuitManifest?: CircuitManifest;
   private provingKey?: Uint8Array;
   private verificationKey?: Uint8Array;
-  private compiledCircuit?: CompiledCircuit;
+  private compiledCircuit?: NoirCompiledCircuit;
 
   async onModuleInit() {
     try {
@@ -30,19 +35,12 @@ export class ZkCompiler implements OnModuleInit {
   async loadArtifacts() {
     const acirUncompressed = readAcirBuffer();
     this.acir = acirUncompressed;
-    this.circuitManifest = JSON.parse(
-      readFileSync(join(CIRCUIT_BUILD, CIRCUIT_FILES.circuit), 'utf-8'),
-    ) as CircuitManifest;
-    this.provingKey = readFileSync(
-      join(CIRCUIT_BUILD, CIRCUIT_FILES.provingKey),
+    this.circuitManifest = this.readManifest();
+    this.provingKey = this.readOptionalBinary(CIRCUIT_FILES.provingKey);
+    this.verificationKey = this.readOptionalBinary(
+      CIRCUIT_FILES.verificationKey,
     );
-    this.verificationKey = readFileSync(
-      join(CIRCUIT_BUILD, CIRCUIT_FILES.verificationKey),
-    );
-    this.compiledCircuit = {
-      bytecode: Buffer.from(acirUncompressed).toString('base64'),
-      abi: this.loadAbiFromCircuit(),
-    };
+    this.compiledCircuit = this.buildCompiledCircuit(acirUncompressed);
     this.logger.log(
       `Circuit ${this.circuitManifest?.name ?? 'unknown'} loaded with backend ${this.circuitManifest?.backend ?? 'n/a'}`,
     );
@@ -59,44 +57,84 @@ export class ZkCompiler implements OnModuleInit {
     if (!this.provingKey) {
       await this.loadArtifacts();
     }
-    return this.provingKey!;
+    if (!this.provingKey) {
+      throw new Error('Proving key not found. Generate it via nargo if needed.');
+    }
+    return this.provingKey;
   }
 
   async getVerificationKey() {
     if (!this.verificationKey) {
       await this.loadArtifacts();
     }
-    return this.verificationKey!;
+    if (!this.verificationKey) {
+      throw new Error(
+        'Verification key not found. Generate it via nargo if needed.',
+      );
+    }
+    return this.verificationKey;
   }
 
   hasBuildArtifacts() {
-    return existsSync(join(CIRCUIT_BUILD, CIRCUIT_FILES.acir));
+    return (
+      existsSync(join(CIRCUIT_BUILD, CIRCUIT_FILES.acir)) ||
+      existsSync(join(CIRCUIT_TARGET, CIRCUIT_FILES.bundle))
+    );
   }
 
   private loadAbiFromCircuit(): Abi {
-    const candidates = [
-      join(CIRCUIT_BUILD, CIRCUIT_FILES.abi),
-      join(CIRCUIT_BUILD, CIRCUIT_FILES.circuit),
+    const directories = [CIRCUIT_BUILD, CIRCUIT_TARGET];
+    const files = [
+      CIRCUIT_FILES.abi,
+      CIRCUIT_FILES.circuit,
+      CIRCUIT_FILES.bundle,
     ];
-    for (const path of candidates) {
-      try {
+
+    for (const dir of directories) {
+      for (const file of files) {
+        const path = join(dir, file);
         if (!existsSync(path)) {
           continue;
         }
-        const data = JSON.parse(readFileSync(path, 'utf-8'));
-        if (data?.abi) {
-          return data.abi as Abi;
+        try {
+          const data = JSON.parse(readFileSync(path, 'utf-8'));
+          if (data?.abi) {
+            return data.abi as Abi;
+          }
+        } catch (error) {
+          this.logger.warn(`Failed to parse ABI from ${path}: ${error}`);
         }
-      } catch (error) {
-        this.logger.warn(`Failed to parse ABI from ${path}: ${error}`);
       }
     }
+
     return {
       parameters: [],
-      param_witnesses: {},
       return_type: null,
-      return_witnesses: [],
+      error_types: {},
     };
+  }
+
+  private readManifest(): CircuitManifest | undefined {
+    const manifestPath = join(CIRCUIT_BUILD, CIRCUIT_FILES.circuit);
+    if (!existsSync(manifestPath)) {
+      return undefined;
+    }
+    try {
+      return JSON.parse(
+        readFileSync(manifestPath, 'utf-8'),
+      ) as CircuitManifest;
+    } catch (error) {
+      this.logger.warn(`Failed to parse circuit manifest: ${error}`);
+      return undefined;
+    }
+  }
+
+  private readOptionalBinary(fileName: string) {
+    const target = join(CIRCUIT_BUILD, fileName);
+    if (existsSync(target)) {
+      return readFileSync(target);
+    }
+    return undefined;
   }
 
   async getCompiledCircuit() {
@@ -105,4 +143,31 @@ export class ZkCompiler implements OnModuleInit {
     }
     return this.compiledCircuit!;
   }
+
+  private buildCompiledCircuit(acir: Uint8Array): NoirCompiledCircuit {
+    const bundlePath = join(CIRCUIT_TARGET, CIRCUIT_FILES.bundle);
+    if (existsSync(bundlePath)) {
+      const bundle = JSON.parse(readFileSync(bundlePath, 'utf-8'));
+      return {
+        bytecode: bundle.bytecode,
+        abi: bundle.abi as Abi,
+        debug_symbols: bundle.debug_symbols ?? '',
+        file_map: bundle.file_map ?? {},
+      };
+    }
+
+    return {
+      bytecode: Buffer.from(acir).toString('base64'),
+      abi: this.loadAbiFromCircuit(),
+      debug_symbols: '',
+      file_map: {},
+    };
+  }
 }
+
+type NoirCompiledCircuit = {
+  bytecode: string;
+  abi: Abi;
+  debug_symbols: string;
+  file_map: Record<string, unknown>;
+};

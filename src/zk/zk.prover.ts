@@ -15,11 +15,13 @@ export class ZkProver {
 
   private async ensureInitialized() {
     if (!this.noir) {
-      this.noir = new Noir(await this.compiler.getCompiledCircuit());
+      const circuit = await this.compiler.getCompiledCircuit();
+      this.noir = new Noir(circuit as any);
     }
 
     if (!this.backend) {
-      this.backend = new BarretenbergBackend(await this.compiler.getCompiledCircuit());
+      const circuit = await this.compiler.getCompiledCircuit();
+      this.backend = new BarretenbergBackend(circuit as any);
     }
   }
 
