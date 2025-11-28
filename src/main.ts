@@ -4,12 +4,20 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'node:path';
+import type { NextFunction, Request, Response } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   });
-  app.setGlobalPrefix('api/v1');
+  const apiPrefix = 'api/v1';
+  app.setGlobalPrefix(apiPrefix);
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.originalUrl.startsWith(`/${apiPrefix}`)) {
+      res.type('application/json');
+    }
+    next();
+  });
   app.enableCors({ origin: '*', credentials: true });
   app.useGlobalPipes(
     new ValidationPipe({
