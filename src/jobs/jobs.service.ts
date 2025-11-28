@@ -12,6 +12,8 @@ import { EscrowService } from '../escrow/escrow.service';
 import { ZkService } from '../zk/zk.service';
 import { NotificationService } from '../notifications/notification.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
+import { PinataService } from '../ipfs/pinata.service';
+import type { Express } from 'express';
 import { CreateJobDto } from './dto/create-job.dto';
 import { ApplyJobDto } from './dto/apply-job.dto';
 import { SubmitWorkDto } from './dto/submit-work.dto';
@@ -29,9 +31,10 @@ export class JobsService {
     private readonly zkService: ZkService,
     private readonly notificationService: NotificationService,
     private readonly blockchain: BlockchainService,
+    private readonly pinataService: PinataService,
   ) {}
 
-  async createJob(userId: string, dto: CreateJobDto) {
+  async createJob(userId: string, dto: CreateJobDto, companyLogoFile?: Express.Multer.File) {
     if (
       dto.salaryMin !== undefined &&
       dto.salaryMax !== undefined &&
@@ -49,6 +52,19 @@ export class JobsService {
     if (!creator) {
       throw new NotFoundException('User missing');
     }
+    let companyLogoUri = dto.companyLogo;
+    if (companyLogoFile) {
+      const upload = await this.pinataService.uploadFile({
+        file: companyLogoFile,
+        metadata: {
+          creatorId: userId,
+          jobTitle: dto.title,
+        },
+      });
+      companyLogoUri = upload.uri;
+      this.logger.debug(`Company logo uploaded to Pinata with CID ${upload.cid}`);
+    }
+
     const onchainJob = await this.blockchain.createJobOnChain(dto.minTrustScore);
 
     const normalizedRequirements =
@@ -62,7 +78,7 @@ export class JobsService {
         title: dto.title,
         description: dto.description,
         companyName: dto.companyName,
-        companyLogo: dto.companyLogo,
+        companyLogo: companyLogoUri,
         location: dto.location,
         jobType: dto.jobType,
         requirements: normalizedRequirements,
@@ -152,7 +168,8 @@ export class JobsService {
   }
 
   async searchJobs(query: SearchJobsQueryDto) {
-    const take = Math.min(parseInt(query.limit ?? '20', 10) || 20, 50);
+    const requestedLimit = Number.parseInt(query.limit ?? '20', 10) || 20;
+    const take = Math.min(requestedLimit, 50);
     const cursorOptions = query.cursor
       ? { cursor: { id: query.cursor }, skip: 1 }
       : undefined;
@@ -175,18 +192,22 @@ export class JobsService {
       where.title = { contains: query.jobTitle, mode: 'insensitive' };
     }
 
-    const results = await this.prisma.job.findMany({
+    const findManyArgs: Prisma.JobFindManyArgs = {
       where,
       orderBy: { createdAt: 'desc' },
       take: take + 1,
-      ...(cursorOptions ?? {}),
       include: {
         creator: { select: { id: true, username: true, avatar: true } },
         _count: {
           select: { applications: true },
         },
       },
-    });
+    };
+    if (cursorOptions) {
+      Object.assign(findManyArgs, cursorOptions);
+    }
+
+    const results = await this.prisma.job.findMany(findManyArgs);
 
     const hasNext = results.length > take;
     const data = results.slice(0, take);

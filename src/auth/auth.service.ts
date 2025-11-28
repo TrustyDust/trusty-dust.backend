@@ -13,17 +13,17 @@ export class AuthService {
 
     const walletAddress = dto.walletAddress.toLowerCase();
 
-    const parts = dto.message.split('on ');
-    if (parts.length < 2) {
-      return 'invalid message format';
-    }
+    // const parts = dto.message.split('on ');
+    // if (parts.length < 2) {
+    //   return 'invalid message format';
+    // }
 
-    const timestampStr = parts[1].trim();
-    const timestamp = new Date(timestampStr).getTime();
+    // const timestampStr = parts[1].trim();
+    // const timestamp = new Date(timestampStr).getTime();
 
-    if (Number.isNaN(timestamp)) {
-      return 'invalid timestamp format';
-    }
+    // if (Number.isNaN(timestamp)) {
+    //   return 'invalid timestamp format';
+    // }
 
     // if (Date.now() - timestamp > 60000) {
     //   invalidReason = 'invalid timestamp';

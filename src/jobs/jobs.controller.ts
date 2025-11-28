@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -8,7 +9,10 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import { memoryStorage } from 'multer';
+import type { Express } from 'express';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JobsService } from './jobs.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -93,12 +97,47 @@ export class JobsController {
   @Post('create')
   @Throttle({ jobsCreate: { limit: 10, ttl: 300 } })
   @ApiOperation({ summary: 'Create job, burn DUST, and lock escrow' })
-  @ApiBody({ type: CreateJobDto })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        description: { type: 'string' },
+        companyName: { type: 'string' },
+        location: { type: 'string' },
+        jobType: { type: 'string' },
+        requirements: { type: 'array', items: { type: 'string' } },
+        minTrustScore: { type: 'integer', minimum: 0 },
+        reward: { type: 'integer', minimum: 1 },
+        salaryMin: { type: 'integer', nullable: true },
+        salaryMax: { type: 'integer', nullable: true },
+        closeAt: { type: 'string', format: 'date-time', nullable: true },
+        zkProofId: { type: 'string', nullable: true },
+        companyLogo: {
+          type: 'string',
+          format: 'binary',
+          description: 'Company logo binary file stored on IPFS via Pinata',
+        },
+      },
+      required: ['title', 'description', 'companyName', 'location', 'jobType', 'minTrustScore', 'reward'],
+    },
+  })
   @ApiCreatedResponse({ description: 'Job record created', type: JobResponseDto })
   @ApiBadRequestResponse({ description: 'Invalid payload or proof missing' })
   @ApiNotFoundResponse({ description: 'Creator user not found' })
-  create(@CurrentUser() user: RequestUser, @Body() dto: CreateJobDto) {
-    return this.jobsService.createJob(user.userId, dto);
+  @UseInterceptors(
+    FileInterceptor('companyLogo', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  create(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: CreateJobDto,
+    @UploadedFile() companyLogo?: Express.Multer.File,
+  ) {
+    return this.jobsService.createJob(user.userId, dto, companyLogo);
   }
 
   @Post(':id/apply')

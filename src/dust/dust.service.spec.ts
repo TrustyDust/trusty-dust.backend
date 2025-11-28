@@ -1,6 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { DustService } from './dust.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { BlockchainService } from '../blockchain/blockchain.service';
+
+const DUST_UNIT = 10n ** 18n;
 
 describe('DustService', () => {
   const prisma = {
@@ -11,7 +15,15 @@ describe('DustService', () => {
       upsert: jest.fn(),
       update: jest.fn(),
     },
+    user: {
+      findUnique: jest.fn(),
+    },
   } as unknown as PrismaService;
+
+  const blockchain = {
+    getDustBalance: jest.fn(),
+    burnDust: jest.fn(),
+  } as unknown as BlockchainService;
 
   let service: DustService;
 
@@ -26,7 +38,10 @@ describe('DustService', () => {
     jest.clearAllMocks();
     (prisma.token.upsert as jest.Mock).mockResolvedValue({ id: 'token-1' });
     (prisma.userTokenBalance.upsert as jest.Mock).mockResolvedValue(mockBalance);
-    service = new DustService(prisma);
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ walletAddress: '0xabc' });
+    (blockchain.getDustBalance as jest.Mock).mockResolvedValue(20n * DUST_UNIT);
+    (blockchain.burnDust as jest.Mock).mockResolvedValue('0xtx');
+    service = new DustService(prisma, blockchain);
   });
 
   describe('rewardUser', () => {
@@ -56,20 +71,25 @@ describe('DustService', () => {
   });
 
   describe('spendDust', () => {
-    it('throws when insufficient balance', async () => {
-      await expect(service.spendDust('user', 50, 'spend')).rejects.toBeInstanceOf(
+    it('throws when insufficient on-chain balance', async () => {
+      (blockchain.getDustBalance as jest.Mock).mockResolvedValue(5n * DUST_UNIT);
+      await expect(service.spendDust('user', 6, 'spend')).rejects.toBeInstanceOf(
         BadRequestException,
       );
     });
 
-    it('debits balance when sufficient', async () => {
-      (prisma.userTokenBalance.update as jest.Mock).mockResolvedValue({ balance: 4 });
+    it('burns tokens when balance sufficient', async () => {
       const result = await service.spendDust('user', 6, 'memo');
-      expect(prisma.userTokenBalance.update).toHaveBeenCalledWith({
-        where: { id: 'balance-1' },
-        data: { balance: 4, lastReason: 'memo' },
-      });
-      expect(result).toEqual({ balance: 4 });
+      expect(blockchain.getDustBalance).toHaveBeenCalledWith('0xabc');
+      expect(blockchain.burnDust).toHaveBeenCalledWith('0xabc', 6);
+      expect(result).toEqual({ burned: 6, txHash: '0xtx' });
+    });
+
+    it('throws when wallet missing', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      await expect(service.spendDust('user', 5, 'memo')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 

@@ -378,23 +378,71 @@ export class BlockchainService {
   }
 
   async burnDustBoost(user: string, amountDust: bigint | number, postId?: number) {
+    return this.writeDustBurn(user, amountDust, `post-${postId ?? 'n/a'}`, true);
+  }
+
+  async burnDust(user: string, amountDust: bigint | number) {
+    return this.writeDustBurn(user, amountDust, 'spend');
+  }
+
+  async getDustBalance(user: string) {
+    if (!this.dustContract) {
+      throw new Error('DUST_CONTRACT missing');
+    }
+    try {
+      const client = this.getPublicClient();
+      const balance = (await client.readContract({
+        address: this.dustContract,
+        abi: DustTokenAbi,
+        functionName: 'balanceOf',
+        args: [this.normalizeAddress(user)],
+      })) as bigint;
+
+      console.log('balance', balance);
+      return balance;
+    } catch (error) {
+      this.logger.error(`Failed to read DUST balance: ${error}`);
+      throw new Error('Unable to fetch DUST balance');
+    }
+  }
+
+  private async writeDustBurn(
+    user: string,
+    amountDust: bigint | number,
+    context: string,
+    allowSimulation = false,
+  ) {
     const contractAddress = this.dustContract;
     if (!contractAddress) {
-      return `offchain-burn-${postId ?? 'n/a'}-${Date.now()}`;
+      if (allowSimulation) {
+        return `offchain-burn-${context}-${Date.now()}`;
+      }
+      throw new Error('DUST_CONTRACT missing');
     }
     const wallet = this.getWalletClient();
     if (!wallet || !this.walletAccount) {
-      return `simulated-burn-${postId ?? 'n/a'}-${Date.now()}`;
+      if (allowSimulation) {
+        return `simulated-burn-${context}-${Date.now()}`;
+      }
+      throw new Error('Wallet client missing for dust burn');
     }
     const amountWei = this.toDustWei(amountDust);
-    this.logger.log(`writeContract burnDust post ${postId ?? 'n/a'} amount ${amountWei}`);
-    return wallet.writeContract({
-      address: contractAddress,
-      abi: DustTokenAbi,
-      functionName: 'burn',
-      args: [this.normalizeAddress(user), amountWei],
-      chain: this.chain,
-      account: this.walletAccount,
-    });
+    this.logger.log(`burnDust context=${context} amount=${amountWei}`);
+    try {
+      return wallet.writeContract({
+        address: contractAddress,
+        abi: DustTokenAbi,
+        functionName: 'burn',
+        args: [this.normalizeAddress(user), amountWei],
+        chain: this.chain,
+        account: this.walletAccount,
+      });
+    } catch (error) {
+      this.logger.error(`Failed to burn DUST (${context}): ${error}`);
+      if (allowSimulation) {
+        return `simulated-burn-${context}-${Date.now()}`;
+      }
+      throw error;
+    }
   }
 }
