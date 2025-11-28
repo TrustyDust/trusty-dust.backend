@@ -348,11 +348,12 @@ export class BlockchainService {
       return null;
     }
     try {
+      const normalizedRating = Number(rating);
       const txHash = await wallet.writeContract({
         address: this.jobsContract,
         abi: JobsAbi,
         functionName: 'approveJob',
-        args: [jobId, BigInt(rating)],
+        args: [jobId, normalizedRating],
         chain: this.chain,
         account: this.walletAccount,
       });
